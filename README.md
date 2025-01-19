@@ -76,33 +76,57 @@ This project simulates a food delivery system using a microservices architecture
 
 - **Port**: 5000
 - **Endpoints**:
-  - `POST /orders`: Generate a new order.
-  - `GET /orders`: Fetch current or historical order data.
-  - `GET /delivery-personnel`: Fetch real-time locations and statuses.
-  - `POST /assign-order`: Assign an order to a delivery person.
-  - `GET /stock`: Fetch current stock levels.
-  - `POST /update-stock`: Adjust stock levels (e.g., restock items).
+  - `GET /orders`: Get all orders.
+  - `GET /orders/active`: Get active orders.
+  - `GET /orders/completed`: Get completed orders.
+  - `GET /order/<order_id>`: Get specific order details.
+  - `GET /delivery_persons`: Get all delivery personnel.
+  - `GET /delivery_persons/en_route`: Get personnel currently delivering.
+  - `GET /delivery_persons/idle`: Get available personnel.
+  - `GET /delivery_persons/<person_id>`: Get specific delivery person details.
+  - `GET /deliveries`: Get all deliveries.
+  - `GET /deliveries/active`: Get active deliveries.
+  - `GET /deliveries/completed`: Get completed deliveries.
+  - `GET /current_stock`: Get all stock levels.
+  - `GET /current_stock/<item_id>`: Get specific item stock level.
+  - `POST /create_order`: Create a new order with customer distance and items.
+  - `POST /close_order/<order_id>`: Complete a specific order.
+  - `POST /assign_delivery`: Assign an order to delivery personnel.
+  - `POST /add_stock`: Add stock quantities for multiple items.
+  - `POST /remove_stock`: Remove stock quantities after validating availability.
 
 #### Order Service
 
 - **Port**: 5001
 - **Endpoints**:
-  - `POST /orders`: Create a new order.
-  - `GET /orders`: Fetch current or historical order data.
+  - `GET /orders`: Get all orders.
+  - `GET /orders/active`: Get active orders.
+  - `GET /orders/completed`: Get completed orders.
+  - `GET /order/<order_id>`: Get specific order details.
+  - `POST /create_order`: Create a new order with customer distance and items.
+  - `POST /close_order/<order_id>`: Complete a specific order.
 
 #### Delivery Service
 
 - **Port**: 5002
 - **Endpoints**:
-  - `GET /delivery-personnel`: Fetch real-time locations and statuses.
-  - `POST /assign-order`: Assign an order to a delivery person.
+  - `GET /delivery_persons`: Get all delivery personnel.
+  - `GET /delivery_persons/en_route`: Get personnel currently delivering.
+  - `GET /delivery_persons/idle`: Get available personnel.
+  - `GET /delivery_persons/<person_id>`: Get specific delivery person details.
+  - `GET /deliveries`: Get all deliveries.
+  - `GET /deliveries/active`: Get active deliveries.
+  - `GET /deliveries/completed`: Get completed deliveries.
+  - `POST /assign_delivery`: Assign an order to delivery personnel.
 
 #### Stock Service
 
 - **Port**: 5003
 - **Endpoints**:
-  - `GET /stock`: Fetch current stock levels.
-  - `POST /update-stock`: Adjust stock levels (e.g., restock items).
+  - `GET /current_stock`: Get all stock levels.
+  - `GET /current_stock/<item_id>`: Get specific item stock level.
+  - `POST /add_stock`: Add stock quantities for multiple items.
+  - `POST /remove_stock`: Remove stock quantities after validating availability.
 
 #### Frontend Service
 
