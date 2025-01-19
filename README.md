@@ -176,6 +176,15 @@ food-delivery-simulation-app/
 └── README.md
 ```
 
+### Microservices Architecture
+
+![Architecture](architecture.drawio.png)
+
+
+### Database Schema
+
+![Database Schema](database_schema.png)
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
