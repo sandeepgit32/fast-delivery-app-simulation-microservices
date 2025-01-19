@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS deliveries (
     FOREIGN KEY (delivery_person_id) REFERENCES delivery_persons(id)
 );
 
-CREATE TABLE IF NOT EXISTS stock (
+CREATE TABLE IF NOT EXISTS stocks (
     item_id VARCHAR(50) PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
     quantity INT NOT NULL
