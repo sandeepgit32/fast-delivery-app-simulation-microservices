@@ -1,3 +1,20 @@
+"""
+Steps to run the tests:
+
+1. Create a new virtual environment in the order-service directory.
+   `python3 -m venv venv`
+
+2. Activate the virtual environment.
+    - Windows: `venv\\Scripts\\activate`
+    - macOS/Linux: `source venv/bin/activate`
+
+3. Install the required packages.
+    `pip install -r requirements.txt`
+
+4. Run the tests.
+    `pytest -v test_api.py`
+"""
+
 import json
 import pytest
 from app import app
@@ -43,15 +60,15 @@ def test_create_order(client, mock_db_connection):
         assert response.status_code == 201
         data = json.loads(response.data)
         assert "id" in data
-        assert data["status"] == "active"
+        assert data["order_status"] == "active"
         assert "order_time" in data
 
 
 def test_get_orders(client, mock_db_connection):
     """Test get_orders endpoint"""
     mock_orders = [
-        {"id": "1", "order_time": "2023-01-01T12:00:00", "status": "active"},
-        {"id": "2", "order_time": "2023-01-01T14:00:00", "status": "completed"},
+        {"id": "1", "order_time": "2023-01-01T12:00:00", "order_status": "active"},
+        {"id": "2", "order_time": "2023-01-01T14:00:00", "order_status": "completed"},
     ]
     mock_db_connection.fetchall.return_value = mock_orders
 
@@ -74,7 +91,7 @@ def test_get_order_details(client, mock_db_connection):
         "id": "1",
         "order_time": "2023-01-01T12:00:00",
         "customer_distance": 5.0,
-        "status": "active",
+        "order_status": "active",
     }
     mock_items = [
         {"item_id": "item1", "item_name": "Pizza", "quantity": 2},
@@ -100,20 +117,20 @@ def test_close_order(client, mock_db_connection):
 
     # Assert database calls
     mock_db_connection.execute.assert_called_once_with(
-        "UPDATE orders SET status = %s WHERE id = %s", ("closed", "1")
+        "UPDATE orders SET order_status = %s WHERE id = %s", ("closed", "1")
     )
 
     assert response.status_code == 200
     data = json.loads(response.data)
-    assert data["status"] == "Order completed"
+    assert data["order_status"] == "Order completed"
 
 
 def test_get_active_orders(client, mock_db_connection):
     """Test get_active_orders endpoint"""
     # Mock database response
     mock_active_orders = [
-        {"id": "1", "order_time": "2023-01-01T12:00:00", "status": "active"},
-        {"id": "2", "order_time": "2023-01-01T13:00:00", "status": "active"},
+        {"id": "1", "order_time": "2023-01-01T12:00:00", "order_status": "active"},
+        {"id": "2", "order_time": "2023-01-01T13:00:00", "order_status": "active"},
     ]
     mock_db_connection.fetchall.return_value = mock_active_orders
 
@@ -124,7 +141,7 @@ def test_get_active_orders(client, mock_db_connection):
     assert response.status_code == 200
     data = json.loads(response.data)
     assert len(data) == 2
-    assert all(order["status"] == "active" for order in data)
+    assert all(order["order_status"] == "active" for order in data)
 
 
 def test_order_not_found(client, mock_db_connection):

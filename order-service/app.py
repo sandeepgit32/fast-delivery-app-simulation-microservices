@@ -16,23 +16,24 @@ db_config = {
     "database": "food_delivery",
 }
 
+
 def update_order(order):
     """
     Insert a new order into the orders table.
-    
+
     Args:
-        order (dict): Order details including id, order_time, customer_name, customer_distance, and status
+        order (dict): Order details including id, order_time, customer_name, customer_distance, and order_status
     """
     conn = mysql.connector.connect(**db_config)
     cursor = conn.cursor()
     cursor.execute(
-        "INSERT INTO orders (id, order_time, customer_name,  customer_distance, status) VALUES (%s, %s, %s, %s, %s, %s)",
+        "INSERT INTO orders (id, order_time, customer_name,  customer_distance, order_status) VALUES (%s, %s, %s, %s, %s, %s)",
         (
             order["id"],
             order["order_time"],
             order["customer_name"],
             order["customer_distance"],
-            order["status"],
+            order["order_status"],
         ),
     )
     conn.commit()
@@ -43,7 +44,7 @@ def update_order(order):
 def update_order_items(order_id, items):
     """
     Insert order items into the order_items table.
-    
+
     Args:
         order_id (str): Unique identifier for the order
         items (dict): Dictionary of item_id and quantity pairs
@@ -53,24 +54,26 @@ def update_order_items(order_id, items):
     values = [(order_id, item_id, quantity) for item_id, quantity in items.items()]
     cursor.executemany(
         "INSERT INTO order_items (order_id, item_id, quantity) VALUES (%s, %s, %s)",
-        values
+        values,
     )
     conn.commit()
     cursor.close()
     conn.close()
 
 
-def update_status_of_an_order(order_id, status):
+def update_status_of_an_order(order_id, order_status):
     """
-    Update the status of an existing order.
-    
+    Update the order_status of an existing order.
+
     Args:
         order_id (str): Unique identifier for the order
-        status (str): New status to be set
+        order_status (str): New order_status to be set
     """
     conn = mysql.connector.connect(**db_config)
     cursor = conn.cursor()
-    cursor.execute("UPDATE orders SET status = %s WHERE id = %s", (status, order_id))
+    cursor.execute(
+        "UPDATE orders SET order_status = %s WHERE id = %s", (order_status, order_id)
+    )
     conn.commit()
     cursor.close()
     conn.close()
@@ -79,17 +82,17 @@ def update_status_of_an_order(order_id, status):
 def get_all_orders(order_type="All"):
     """
     Retrieve orders based on their type.
-    
+
     Args:
         order_type (str): Filter for orders ('active', 'completed', or 'All')
-    
+
     Returns:
         list: List of order dictionaries
     """
     if order_type == "active":
-        query = "SELECT * FROM orders WHERE status = 'active';"
+        query = "SELECT * FROM orders WHERE order_status = 'active';"
     elif order_type == "completed":
-        query = "SELECT * FROM orders WHERE status = 'completed';"
+        query = "SELECT * FROM orders WHERE order_status = 'completed';"
     else:
         query = "SELECT * FROM orders;"
     conn = mysql.connector.connect(**db_config)
@@ -104,10 +107,10 @@ def get_all_orders(order_type="All"):
 def get_order_details(order_id):
     """
     Get detailed information about a specific order including its items.
-    
+
     Args:
         order_id (str): Unique identifier for the order
-    
+
     Returns:
         dict: Order details with items or None if not found
     """
@@ -131,11 +134,11 @@ def get_order_details(order_id):
 def process_order(order_id, customer_distance):
     """
     Process an order by requesting delivery assignment.
-    
+
     Args:
         order_id (str): Unique identifier for the order
         customer_distance (float): Distance to customer location
-    
+
     Returns:
         str: Status message indicating success or failure
     """
@@ -156,18 +159,19 @@ def process_order(order_id, customer_distance):
 
 # API Endpoints
 
+
 @app.route("/create_order", methods=["POST"])
 def create_order():
     """
     API endpoint to create a new order and assign delivery.
-    
+
     Query Parameters:
         customer_name (str): Name of the customer
         customer_distance (float): Distance to customer location
         items (dict): Dictionary of items and quantities
     """
-    customer_name = request.args.get('customer_name')
-    customer_distance = request.args.get('customer_distance', type=float)
+    customer_name = request.args.get("customer_name")
+    customer_distance = request.args.get("customer_distance", type=float)
     order_items = request.args.get("items")
     order_items = json.loads(order_items)
     order = {
@@ -175,8 +179,8 @@ def create_order():
         "order_time": datetime.now().isoformat(),
         "customer_name": customer_name,
         "customer_distance": customer_distance,
-        "status": "active",
-        "items": order_items
+        "order_status": "active",
+        "items": order_items,
     }
     update_order(order)
     update_order_items(order["id"], order_items)
@@ -192,12 +196,12 @@ def create_order():
 def close_order(order_id):
     """
     API endpoint to mark an order as closed.
-    
+
     Parameters:
         order_id (str): Unique identifier for the order
     """
     update_status_of_an_order(order_id, "closed")
-    return jsonify({"status": "Order completed"}), 200
+    return jsonify({"order_status": "Order completed"}), 200
 
 
 @app.route("/orders", methods=["GET"])
@@ -225,7 +229,7 @@ def get_completed_orders():
 def get_order(order_id):
     """
     API endpoint to retrieve details of a specific order.
-    
+
     Parameters:
         order_id (str): Unique identifier for the order
     """
