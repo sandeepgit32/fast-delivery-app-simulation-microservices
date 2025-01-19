@@ -87,6 +87,7 @@ This project simulates a food delivery system using a microservices architecture
   - `GET /deliveries`: Get all deliveries.
   - `GET /deliveries/active`: Get active deliveries.
   - `GET /deliveries/completed`: Get completed deliveries.
+  - `GET /deliveries/<delivery_id>`: Get specific delivery details.
   - `GET /current_stock`: Get all stock levels.
   - `GET /current_stock/<item_id>`: Get specific item stock level.
   - `POST /create_order`: Create a new order with customer distance and items.
@@ -117,6 +118,7 @@ This project simulates a food delivery system using a microservices architecture
   - `GET /deliveries`: Get all deliveries.
   - `GET /deliveries/active`: Get active deliveries.
   - `GET /deliveries/completed`: Get completed deliveries.
+  - `GET /deliveries/<delivery_id>`: Get specific delivery details.
   - `POST /assign_delivery`: Assign an order to delivery personnel.
 
 #### Stock Service

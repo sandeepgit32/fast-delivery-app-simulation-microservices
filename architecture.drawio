@@ -58,14 +58,14 @@
         <mxCell id="3ZN4kEDKgWEgKxyQS_zH-28" value="&lt;font style=&quot;font-size: 14px;&quot;&gt;Client&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
           <mxGeometry x="-210" y="255" width="60" height="30" as="geometry" />
         </mxCell>
-        <mxCell id="3ZN4kEDKgWEgKxyQS_zH-30" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;GET /orders&lt;br&gt;GET /orders/active&lt;br&gt;GET /orders/completed&lt;br&gt;GET /order/&lt;br&gt;POST /create_order&lt;br&gt;POST /close_order/&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="196" y="10" width="160" height="110" as="geometry" />
+        <mxCell id="3ZN4kEDKgWEgKxyQS_zH-30" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;GET /orders&lt;br&gt;GET /orders/active&lt;br&gt;GET /orders/completed&lt;br&gt;GET /order/&amp;lt;order_id&amp;gt;&lt;br&gt;POST /create_order&lt;br&gt;POST /close_order/&amp;lt;order_id&amp;gt;&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="190" y="10" width="244" height="110" as="geometry" />
         </mxCell>
-        <mxCell id="3ZN4kEDKgWEgKxyQS_zH-31" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;GET /delivery_persons&lt;br&gt;GET /delivery_persons/en_route&lt;br&gt;GET /delivery_persons/idle&lt;br&gt;GET /delivery_persons/&lt;br&gt;GET /deliveries&lt;br&gt;GET /deliveries/active&lt;br&gt;GET /deliveries/completed&lt;br&gt;POST /assign_delivery&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="197" y="339" width="230" height="140" as="geometry" />
+        <mxCell id="3ZN4kEDKgWEgKxyQS_zH-31" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;GET /delivery_persons&lt;br&gt;GET /delivery_persons/en_route&lt;br&gt;GET /delivery_persons/idle&lt;br&gt;GET /delivery_persons/&amp;lt;person_id&amp;gt;&lt;br&gt;GET /deliveries&lt;br&gt;GET /deliveries/active&lt;br&gt;GET /deliveries/completed&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;&quot;&gt;&lt;span style=&quot;font-size: 15px;&quot;&gt;GET /deliveries/&amp;lt;delivery_id&amp;gt;&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;font-size: 15px;&quot;&gt;POST /assign_delivery&lt;/span&gt;&lt;/font&gt;&lt;/div&gt;" style="text;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="193" y="333" width="273" height="140" as="geometry" />
         </mxCell>
-        <mxCell id="3ZN4kEDKgWEgKxyQS_zH-32" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;GET /current_stock&lt;br&gt;GET /current_stock/&lt;br&gt;POST /add_stock&lt;br&gt;POST /remove_stock&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;" vertex="1" parent="1">
-          <mxGeometry x="312" y="186" width="150" height="80" as="geometry" />
+        <mxCell id="3ZN4kEDKgWEgKxyQS_zH-32" value="&lt;font style=&quot;font-size: 15px;&quot;&gt;GET /current_stock&lt;br&gt;GET /current_stock/&amp;lt;item_id&amp;gt;&lt;br&gt;POST /add_stock&lt;br&gt;POST /remove_stock&lt;/font&gt;" style="text;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="271" y="186" width="202" height="80" as="geometry" />
         </mxCell>
       </root>
     </mxGraphModel>
