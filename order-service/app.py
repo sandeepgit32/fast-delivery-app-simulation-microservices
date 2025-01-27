@@ -1,14 +1,17 @@
-from datetime import datetime
-import json
 import uuid
+from datetime import datetime
+from typing import List, Optional
 
-import requests
+import httpx
 import mysql.connector
-from flask import Flask, jsonify, request
+from mysql.connector import Error as MySQLError
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+from contextlib import contextmanager
 
-app = Flask(__name__)
+app = FastAPI(title="Order Service API")
 
-# MySQL database configuration for food delivery system
+# MySQL configuration
 db_config = {
     "user": "root",
     "password": "password",
@@ -17,48 +20,97 @@ db_config = {
 }
 
 
+class OrderItem(BaseModel):
+    item_id: str
+    quantity: int
+
+
+class CreateOrderRequest(BaseModel):
+    customer_name: str
+    customer_distance: float
+    items: List[OrderItem]
+
+
+class OrderResponse(BaseModel):
+    id: str
+    order_time: str
+    customer_name: str
+    customer_distance: float
+    order_status: str
+    items: List[OrderItem]
+    message: Optional[str] = None
+
+
+@contextmanager
+def get_db_connection():
+    """Context manager for database connections."""
+    conn = None
+    try:
+        conn = mysql.connector.connect(**db_config)
+        yield conn
+    except MySQLError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database connection failed: {str(e)}",
+        )
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
+
+
 def update_order(order):
-    """
-    Insert a new order into the orders table.
+    """Insert a new order into the orders table."""
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                """INSERT INTO orders 
+                   (id, order_time, customer_name, customer_distance, order_status) 
+                   VALUES (%s, %s, %s, %s, %s)""",
+                (
+                    order["id"],
+                    order["order_time"],
+                    order["customer_name"],
+                    order["customer_distance"],
+                    order["order_status"],
+                ),
+            )
+            conn.commit()
+        except MySQLError as e:
+            conn.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create order: {str(e)}",
+            )
+        finally:
+            cursor.close()
 
-    Args:
-        order (dict): Order details including id, order_time, customer_name, customer_distance, and order_status
-    """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO orders (id, order_time, customer_name,  customer_distance, order_status) VALUES (%s, %s, %s, %s, %s, %s)",
-        (
-            order["id"],
-            order["order_time"],
-            order["customer_name"],
-            order["customer_distance"],
-            order["order_status"],
-        ),
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
 
-
-def update_order_items(order_id, items):
+def update_order_items(order_id, items: List[OrderItem]):
     """
     Insert order items into the order_items table.
 
     Args:
         order_id (str): Unique identifier for the order
-        items (dict): Dictionary of item_id and quantity pairs
+        items (List[OrderItem]): List of OrderItem objects
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    values = [(order_id, item_id, quantity) for item_id, quantity in items.items()]
-    cursor.executemany(
-        "INSERT INTO order_items (order_id, item_id, quantity) VALUES (%s, %s, %s)",
-        values,
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.cursor()
+            values = [(order_id, item.item_id, item.quantity) for item in items]
+            cursor.executemany(
+                "INSERT INTO order_items (order_id, item_id, quantity) VALUES (%s, %s, %s)",
+                values,
+            )
+            conn.commit()
+        except MySQLError as e:
+            conn.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to create order items: {str(e)}",
+            )
+        finally:
+            cursor.close()
 
 
 def update_status_of_an_order(order_id, order_status):
@@ -69,14 +121,26 @@ def update_status_of_an_order(order_id, order_status):
         order_id (str): Unique identifier for the order
         order_status (str): New order_status to be set
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE orders SET order_status = %s WHERE id = %s", (order_status, order_id)
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE orders SET order_status = %s WHERE id = %s",
+                (order_status, order_id),
+            )
+            if cursor.rowcount == 0:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+                )
+            conn.commit()
+        except MySQLError as e:
+            conn.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to update order status: {str(e)}",
+            )
+        finally:
+            cursor.close()
 
 
 def get_all_orders(order_type="All"):
@@ -89,19 +153,24 @@ def get_all_orders(order_type="All"):
     Returns:
         list: List of order dictionaries
     """
-    if order_type == "active":
-        query = "SELECT * FROM orders WHERE order_status = 'active';"
-    elif order_type == "completed":
-        query = "SELECT * FROM orders WHERE order_status = 'completed';"
-    else:
-        query = "SELECT * FROM orders;"
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(query)
-    orders = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return orders
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            if order_type == "active":
+                query = "SELECT * FROM orders WHERE order_status = 'active';"
+            elif order_type == "completed":
+                query = "SELECT * FROM orders WHERE order_status = 'completed';"
+            else:
+                query = "SELECT * FROM orders;"
+            cursor.execute(query)
+            return cursor.fetchall()
+        except MySQLError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve orders: {str(e)}",
+            )
+        finally:
+            cursor.close()
 
 
 def get_order_details(order_id):
@@ -114,130 +183,137 @@ def get_order_details(order_id):
     Returns:
         dict: Order details with items or None if not found
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
-    order_details = cursor.fetchone()
-    if not order_details:
-        return None
-    get_items_query = """SELECT oi.item_id, s.item_name, oi.quantity FROM order_items oi
-    JOIN stock s ON oi.item_id = s.item_id
-    WHERE order_id = %s"""
-    cursor.execute(get_items_query, (order_id,))
-    items = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    order_details["items"] = items
-    return order_details
+    with get_db_connection() as conn:
+        try:
+            cursor = conn.cursor(dictionary=True)
+            cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+            order_details = cursor.fetchone()
+            if not order_details:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+                )
+
+            get_items_query = """SELECT oi.item_id, s.item_name, oi.quantity 
+                                FROM order_items oi
+                                JOIN stock s ON oi.item_id = s.item_id
+                                WHERE order_id = %s"""
+            cursor.execute(get_items_query, (order_id,))
+            items = cursor.fetchall()
+            order_details["items"] = items
+            return order_details
+        except MySQLError as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to retrieve order details: {str(e)}",
+            )
+        finally:
+            cursor.close()
 
 
-def process_order(order_id, customer_distance):
-    """
-    Process an order by requesting delivery assignment.
+async def process_order(order_id, customer_distance):
+    """Process an order by requesting delivery assignment."""
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.post(
+                "http://delivery-service:5002/assign_delivery",
+                json={"order_id": order_id, "customer_distance": customer_distance},
+            )
+            response.raise_for_status()
+            data = response.json()
+            if "error" in data:
+                await update_status_of_an_order(order_id, "failed")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=data["error"]
+                )
+            return "Delivery person assigned"
 
-    Args:
-        order_id (str): Unique identifier for the order
-        customer_distance (float): Distance to customer location
+    except httpx.TimeoutException:
+        await update_status_of_an_order(order_id, "failed")
+        raise HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail="Delivery service timeout",
+        )
 
-    Returns:
-        str: Status message indicating success or failure
-    """
-    print("Order ID: ", order_id)
-    print("Customer Distance: ", customer_distance)
-    return "Delivery person assigned"
-    # request_data = {
-    #     "order_id": order_id,
-    #     "customer_distance": customer_distance
-    # }
-    # response = requests.post("http://delivery-service:5002/assign_delivery", json=request_data)
-    # if "error" in response.json():
-    #     update_status_of_an_order(order_id, "failed")
-    #     return response.json()["error"]
-    # else:
-    #     return "Delivery person assigned"
+    except httpx.RequestError as e:
+        await update_status_of_an_order(order_id, "failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Delivery service error: {str(e)}",
+        )
 
 
-# API Endpoints
+@app.post(
+    "/create_order", response_model=OrderResponse, status_code=status.HTTP_201_CREATED
+)
+async def create_order(order_request: CreateOrderRequest):
+    """Create a new order and assign delivery."""
+    if not order_request.items:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Order must contain at least one item",
+        )
 
+    if order_request.customer_distance <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Customer distance must be greater than 0",
+        )
 
-@app.route("/create_order", methods=["POST"])
-def create_order():
-    """
-    API endpoint to create a new order and assign delivery.
-
-    Query Parameters:
-        customer_name (str): Name of the customer
-        customer_distance (float): Distance to customer location
-        items (dict): Dictionary of items and quantities
-    """
-    customer_name = request.args.get("customer_name")
-    customer_distance = request.args.get("customer_distance", type=float)
-    order_items = request.args.get("items")
-    order_items = json.loads(order_items)
     order = {
         "id": uuid.uuid4().hex,
         "order_time": datetime.now().isoformat(),
-        "customer_name": customer_name,
-        "customer_distance": customer_distance,
+        "customer_name": order_request.customer_name,
+        "customer_distance": order_request.customer_distance,
         "order_status": "active",
-        "items": order_items,
+        "items": order_request.items,
     }
+
     update_order(order)
-    update_order_items(order["id"], order_items)
-    message = process_order(order["id"], customer_distance)
+    update_order_items(order["id"], order_request.items)
+    message = await process_order(order["id"], order_request.customer_distance)
+
+    if message != "Delivery person assigned":
+        raise HTTPException(status_code=400, detail=message)
+
     order["message"] = message
-    if message == "Delivery person assigned":
-        return jsonify(order), 201
-    else:
-        return jsonify({"error": message}), 400
+    return order
 
 
-@app.route("/close_order/<order_id>", methods=["POST"])
-def close_order(order_id):
-    """
-    API endpoint to mark an order as closed.
-
-    Parameters:
-        order_id (str): Unique identifier for the order
-    """
+@app.post("/close_order/{order_id}", response_model=dict)
+async def close_order(order_id: str):
+    """Mark an order as closed."""
     update_status_of_an_order(order_id, "closed")
-    return jsonify({"order_status": "Order completed"}), 200
+    return {"order_status": "Order completed"}
 
 
-@app.route("/orders", methods=["GET"])
-def get_orders():
-    """API endpoint to retrieve all orders."""
-    orders = get_all_orders()
-    return jsonify(orders), 200
+@app.get("/orders")
+async def get_orders():
+    """Retrieve all orders."""
+    return get_all_orders()
 
 
-@app.route("/orders/active", methods=["GET"])
-def get_active_orders():
-    """API endpoint to retrieve all active orders."""
-    active_orders = get_all_orders("active")
-    return jsonify(active_orders), 200
+@app.get("/orders/active")
+async def get_active_orders():
+    """Retrieve all active orders."""
+    return get_all_orders("active")
 
 
-@app.route("/orders/completed", methods=["GET"])
-def get_completed_orders():
-    """API endpoint to retrieve all completed orders."""
-    completed_orders = get_all_orders("completed")
-    return jsonify(completed_orders), 200
+@app.get("/orders/completed")
+async def get_completed_orders():
+    """Retrieve all completed orders."""
+    return get_all_orders("completed")
 
 
-@app.route("/order/<order_id>", methods=["GET"])
-def get_order(order_id):
-    """
-    API endpoint to retrieve details of a specific order.
-
-    Parameters:
-        order_id (str): Unique identifier for the order
-    """
+@app.get("/order/{order_id}")
+async def get_order(order_id: str):
+    """Retrieve details of a specific order."""
     order_details = get_order_details(order_id)
-    if order_details:
-        return jsonify(order_details), 200
-    return jsonify({"error": "Order not found"}), 404
+    if not order_details:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return order_details
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5001)
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=5001)

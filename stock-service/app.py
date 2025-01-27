@@ -1,7 +1,10 @@
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
 import mysql.connector
+import random
 
-app = Flask(__name__)
+app = FastAPI(title="Stock Service API")
 
 # MySQL configuration
 db_config = {
@@ -12,16 +15,22 @@ db_config = {
 }
 
 
-# TODO Move it to the simulation-service
-def init_stock():
-    """
-    Initialize the stock database with random item quantities.
-    Generates 19 items with random quantities between 50 and 200.
-    This is a temporary function that should be moved to simulation-service.
-    """
-    # Initialize some random stock data if table is empty
-    import random
+class OrderItem(BaseModel):
+    item_id: int
+    quantity: int
 
+
+class OrderItems(BaseModel):
+    order_items: List[OrderItem]
+
+
+class StockResponse(BaseModel):
+    message: str
+
+
+@app.on_event("startup")
+def init_stock():
+    """Initialize the stock database with random item quantities."""
     random_items = []
     for i in range(1, 20):
         random_items.append((f"item{i}", random.randint(50, 200)))
@@ -148,84 +157,52 @@ def validate_stock(items):
     return True, None
 
 
-@app.route("/add_stock", methods=["POST"])
-def add_stock():
+@app.post("/add_stock", response_model=StockResponse)
+async def add_stock(items: OrderItems):
     """
-    API endpoint to add stock quantities for multiple items.
-
-    Expected JSON payload:
-        {
-            "order_items": [
-                {"item_id": "...", "quantity": int}
-            ]
-        }
-
-    Returns:
-        tuple: JSON response and HTTP status code
+    Add stock quantities for multiple items.
     """
-    data = request.get_json()
-    order_items = data.get("order_items")
-    batch_update_stock(order_items, operation="add")
-    return jsonify({"message": "Stock updated"}), 200
+    result, status_code = batch_update_stock(items.order_items, operation="add")
+    if status_code != 200:
+        raise HTTPException(status_code=status_code, detail=result["error"])
+    return {"message": "Stock updated"}
 
 
-@app.route("/remove_stock", methods=["POST"])
-def remove_stock():
+@app.post("/remove_stock", response_model=StockResponse)
+async def remove_stock(items: OrderItems):
     """
-    API endpoint to remove stock quantities for multiple items.
-    Validates stock availability before removal.
-
-    Expected JSON payload:
-        {
-            "order_items": [
-                {"item_id": "...", "quantity": int}
-            ]
-        }
-
-    Returns:
-        tuple: JSON response and HTTP status code
+    Remove stock quantities for multiple items.
     """
-    data = request.get_json()
-    order_items = data.get("order_items")
-    status, message = validate_stock(order_items)
+    status, message = validate_stock(items.order_items)
     if not status:
-        return jsonify({"error": message}), 400
-    batch_update_stock(order_items, operation="remove")
-    return jsonify({"message": "Stock updated"}), 200
+        raise HTTPException(status_code=400, detail=message)
+    result, status_code = batch_update_stock(items.order_items, operation="remove")
+    if status_code != 200:
+        raise HTTPException(status_code=status_code, detail=result["error"])
+    return {"message": "Stock updated"}
 
 
-@app.route("/current_stock", methods=["GET"])
-def current_stock():
+@app.get("/current_stock")
+async def current_stock():
     """
-    API endpoint to get current stock levels for all items.
-
-    Returns:
-        tuple: JSON response containing list of all items and their stock levels,
-               and HTTP status code
+    Get current stock levels for all items.
     """
     stock = get_current_stock()
-    print("------------------>", stock)
-    return jsonify(stock), 200
+    return stock
 
 
-@app.route("/current_stock/<item_id>", methods=["GET"])
-def item_stock(item_id):
+@app.get("/current_stock/{item_id}")
+async def item_stock(item_id: int):
     """
-    API endpoint to get current stock level for a specific item.
-
-    Args:
-        item_id (str): Unique identifier of the item
-
-    Returns:
-        tuple: JSON response containing item details and HTTP status code,
-               or error message if item not found
+    Get current stock level for a specific item.
     """
     stock = get_item_stock(item_id)
     if stock is None:
-        return jsonify({"error": "Item not found"}), 404
-    return jsonify(stock), 200
+        raise HTTPException(status_code=404, detail="Item not found")
+    return stock
 
 
 if __name__ == "__main__":
-    init_stock()
-    app.run(debug=True, port=5003)
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=5003)

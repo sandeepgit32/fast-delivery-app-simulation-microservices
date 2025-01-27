@@ -1,5 +1,6 @@
-Flask
-requests
+fastapi
+uvicorn[standard]
 mysql-connector-python
 pytest
 pytest-mock
+pydantic

@@ -1,11 +1,13 @@
-import random
-from flask import Flask, request, jsonify
-import mysql.connector
 from datetime import datetime
+import random
+from typing import List, Optional
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+import mysql.connector
+from mysql.connector import MySQLError
+from contextlib import contextmanager
 
-# Initialize Flask application
-app = Flask(__name__)
-
+app = FastAPI(title="Delivery Service API")
 
 # MySQL configuration
 db_config = {
@@ -14,6 +16,44 @@ db_config = {
     "host": "mysql",
     "database": "food_delivery",
 }
+
+
+class DeliveryPerson(BaseModel):
+    id: int
+    name: str
+    person_status: str
+    current_location: Optional[str] = None
+
+
+class Delivery(BaseModel):
+    id: int
+    order_id: str
+    delivery_person_id: int
+    delivery_status: str
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class AssignDeliveryRequest(BaseModel):
+    order_id: str
+    customer_distance: float
+
+
+@contextmanager
+def get_db_connection():
+    """Context manager for database connections."""
+    conn = None
+    try:
+        conn = mysql.connector.connect(**db_config)
+        yield conn
+    except MySQLError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database connection failed: {str(e)}",
+        )
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
 
 def get_delivery_personnel(person_status="All"):
@@ -30,14 +70,14 @@ def get_delivery_personnel(person_status="All"):
         query = "SELECT * FROM delivery_persons WHERE person_status = 'en route';"
     else:
         query = "SELECT * FROM delivery_persons;"
-    query = "SELECT * FROM delivery_persons;"
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(query)
-    delivery_persons = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return delivery_persons
+        
+    with get_db_connection() as conn:
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(query)
+            return cursor.fetchall()
+        finally:
+            cursor.close()
 
 
 def get_list_of_deliveries(delivery_type="All"):
@@ -54,13 +94,14 @@ def get_list_of_deliveries(delivery_type="All"):
         query = "SELECT * FROM deliveries WHERE delivery_status = 'completed';"
     else:
         query = "SELECT * FROM deliveries;"
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute(query)
-    deliveries = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return deliveries
+        
+    with get_db_connection() as conn:
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute(query)
+            return cursor.fetchall()
+        finally:
+            cursor.close()
 
 
 def fetch_delivery_person(person_id):
@@ -71,13 +112,13 @@ def fetch_delivery_person(person_id):
     Returns:
         dict: Delivery person details or None if not found
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM delivery_persons WHERE id = %s", (person_id,))
-    person = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return person
+    with get_db_connection() as conn:
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM delivery_persons WHERE id = %s", (person_id,))
+            return cursor.fetchone()
+        finally:
+            cursor.close()
 
 
 def update_delivery_person_status(person_id, status):
@@ -87,15 +128,16 @@ def update_delivery_person_status(person_id, status):
         person_id: ID of the delivery person
         person_status (str): New person_status to be set
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE delivery_persons SET person_status = %s WHERE id = %s",
-        (status, person_id),
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE delivery_persons SET person_status = %s WHERE id = %s",
+                (status, person_id),
+            )
+            conn.commit()
+        finally:
+            cursor.close()
 
 
 def fetch_delivery(delivery_id):
@@ -106,13 +148,13 @@ def fetch_delivery(delivery_id):
     Returns:
         dict: Delivery details or None if not found
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM deliveries WHERE id = %s", (delivery_id,))
-    delivery = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return delivery
+    with get_db_connection() as conn:
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM deliveries WHERE id = %s", (delivery_id,))
+            return cursor.fetchone()
+        finally:
+            cursor.close()
 
 
 def create_delivery_record(order_id, delivery_person_id):
@@ -124,17 +166,18 @@ def create_delivery_record(order_id, delivery_person_id):
     Returns:
         ID of the created delivery record
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO deliveries (order_id, delivery_person_id, delivery_status, created_at) VALUES (%s, %s, %s, %s)",
-        (order_id, delivery_person_id, "active", datetime.now()),
-    )
-    delivery_id = cursor.lastrowid
-    conn.commit()
-    cursor.close()
-    conn.close()
-    return delivery_id
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO deliveries (order_id, delivery_person_id, delivery_status, created_at) VALUES (%s, %s, %s, %s)",
+                (order_id, delivery_person_id, "active", datetime.now()),
+            )
+            delivery_id = cursor.lastrowid
+            conn.commit()
+            return delivery_id
+        finally:
+            cursor.close()
 
 
 def close_delivery_record(delivery_id):
@@ -143,13 +186,16 @@ def close_delivery_record(delivery_id):
     Args:
         delivery_id: ID of the delivery to be completed
     """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.execute(
-        "UPDATE deliveries SET delivery_status = 'completed', completed_at = %s WHERE id = %s",
-        (datetime.now(), delivery_id),
-    )
-    conn.commit()
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "UPDATE deliveries SET delivery_status = 'completed', completed_at = %s WHERE id = %s",
+                (datetime.now(), delivery_id),
+            )
+            conn.commit()
+        finally:
+            cursor.close()
 
 
 def process_delivery(delivery_id):
@@ -170,92 +216,77 @@ def process_delivery(delivery_id):
     pass
 
 
-# API Routes
-
-
-@app.route("/delivery_persons", methods=["GET"])
-def get_delivery_personnel_list():
+@app.get("/delivery_persons", response_model=List[DeliveryPerson])
+async def get_delivery_personnel_list():
     """Get a list of all delivery personnel"""
-    personnel = get_delivery_personnel()
-    return jsonify(personnel), 200
+    return get_delivery_personnel()
 
 
-@app.route("/delivery_persons/en_route", methods=["GET"])
-def get_delivery_personnel_list_en_route():
+@app.get("/delivery_persons/en_route", response_model=List[DeliveryPerson])
+async def get_delivery_personnel_list_en_route():
     """Get a list of delivery personnel who are currently delivering"""
-    personnel = get_delivery_personnel(person_status="en_route")
-    return jsonify(personnel), 200
+    return get_delivery_personnel(person_status="en_route")
 
 
-@app.route("/delivery_persons/idle", methods=["GET"])
-def get_idle_delivery_personnel_list():
+@app.get("/delivery_persons/idle", response_model=List[DeliveryPerson])
+async def get_idle_delivery_personnel_list():
     """Get a list of available delivery personnel"""
-    personnel = get_delivery_personnel(person_status="idle")
-    return jsonify(personnel), 200
+    return get_delivery_personnel(person_status="idle")
 
 
-@app.route("/delivery_persons/<person_id>", methods=["GET"])
-def get_delivery_person(person_id):
-    """Get details of a specific delivery person by ID"""
+@app.get("/delivery_persons/{person_id}", response_model=DeliveryPerson)
+async def get_delivery_person(person_id: int):
+    """Get details of a specific delivery person"""
     person = fetch_delivery_person(person_id)
-    if person:
-        return jsonify(person), 200
-    return jsonify({"error": "Delivery person not found"}), 404
+    if not person:
+        raise HTTPException(status_code=404, detail="Delivery person not found")
+    return person
 
 
-@app.route("/deliveries", methods=["GET"])
-def get_all_deliveries():
-    """Get a list of all deliveries in the system"""
-    deliveries = get_list_of_deliveries()
-    return jsonify(deliveries), 200
+@app.get("/deliveries", response_model=List[Delivery])
+async def get_all_deliveries():
+    """Get a list of all deliveries"""
+    return get_list_of_deliveries()
 
 
-@app.route("/deliveries/active", methods=["GET"])
-def get_active_deliveries():
+@app.get("/deliveries/active", response_model=List[Delivery])
+async def get_active_deliveries():
     """Get a list of all ongoing deliveries"""
-    deliveries = get_list_of_deliveries(delivery_type="active")
-    return jsonify(deliveries), 200
+    return get_list_of_deliveries(delivery_type="active")
 
 
-@app.route("/deliveries/completed", methods=["GET"])
-def get_completed_deliveries():
+@app.get("/deliveries/completed", response_model=List[Delivery])
+async def get_completed_deliveries():
     """Get a list of all completed deliveries"""
-    deliveries = get_list_of_deliveries(delivery_type="completed")
-    return jsonify(deliveries), 200
+    return get_list_of_deliveries(delivery_type="completed")
 
 
-@app.route("/deliveries/<delivery_id>", methods=["GET"])
-def get_delivery(delivery_id):
-    """Get details of a specific delivery by ID"""
+@app.get("/deliveries/{delivery_id}", response_model=Delivery)
+async def get_delivery(delivery_id: int):
+    """Get details of a specific delivery"""
     delivery = fetch_delivery(delivery_id)
-    if delivery:
-        return jsonify(delivery), 200
-    return jsonify({"error": "Delivery not found"}), 404
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery not found")
+    return delivery
 
 
-@app.route("/assign_delivery", methods=["POST"])
-def assign_delivery():
-    """
-    Assign a delivery to an available delivery person
-    """
-    order_id = request.args.get("order_id")
-    customer_distance = request.args.get("customer_distance")
+@app.post("/assign_delivery")
+async def assign_delivery(request: AssignDeliveryRequest):
+    """Assign a delivery to an available delivery person"""
     idle_persons = get_delivery_personnel(person_status="idle")
     if not idle_persons:
-        return jsonify({"error": "No delivery personnel available"}), 400
-    else:
-        # select one idle person in random
-        delivery_person = random.choice(idle_persons)
-        delivery_person_id = delivery_person["id"]
-        delivery_id = create_delivery_record(order_id, delivery_person_id)
-        process_delivery(delivery_id, customer_distance)
-        update_delivery_person_status(delivery_person_id, "en route")
-        return (
-            jsonify({"delivery_id": delivery_id, "delivery_person": delivery_person}),
-            200,
-        )
+        raise HTTPException(status_code=400, detail="No delivery personnel available")
+
+    delivery_person = random.choice(idle_persons)
+    delivery_person_id = delivery_person["id"]
+    delivery_id = create_delivery_record(request.order_id, delivery_person_id)
+    process_delivery(delivery_id, request.customer_distance)
+    update_delivery_person_status(delivery_person_id, "en route")
+
+    return {"delivery_id": delivery_id, "delivery_person": delivery_person}
 
 
-# Run the Flask application
 if __name__ == "__main__":
-    app.run(debug=True, port=5002)
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=5002)
