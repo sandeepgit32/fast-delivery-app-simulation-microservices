@@ -12,7 +12,7 @@ app = FastAPI(title="Stock Service API")
 db_config = {
     "user": "root",
     "password": "password",
-    "host": "mysql",
+    "host": "db",
     "database": "food_delivery",
 }
 

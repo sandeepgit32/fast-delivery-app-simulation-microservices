@@ -65,13 +65,13 @@ INSERT INTO stock (item_name, quantity) VALUES
 
 -- Insert sample data into delivery_persons table
 INSERT INTO delivery_persons (name, phone_number, person_status) VALUES
-('John Doe', '1234567890', 'AVAILABLE'),
-('Jane Doe', '0987654321', 'AVAILABLE'),
-('Alice Smith', '1231231234', 'AVAILABLE'),
-('Bob Wilson', '4564564567', 'AVAILABLE'),
-('Charlie Brown', '7897897890', 'AVAILABLE'),
-('David Johnson', '1112223333', 'AVAILABLE'),
-('Eva Martinez', '4445556666', 'AVAILABLE'),
-('Frank Thomas', '7778889999', 'AVAILABLE'),
-('Grace Lee', '3334445555', 'AVAILABLE'),
-('Henry Garcia', '6667778888', 'AVAILABLE');
+('John Doe', '1234567890', 'idle'),
+('Jane Doe', '0987654321', 'idle'),
+('Alice Smith', '1231231234', 'idle'),
+('Bob Wilson', '4564564567', 'idle'),
+('Charlie Brown', '7897897890', 'idle'),
+('David Johnson', '1112223333', 'idle'),
+('Eva Martinez', '4445556666', 'idle'),
+('Frank Thomas', '7778889999', 'idle'),
+('Grace Lee', '3334445555', 'idle'),
+('Henry Garcia', '6667778888', 'idle');

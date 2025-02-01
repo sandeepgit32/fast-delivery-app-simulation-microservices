@@ -14,7 +14,7 @@ app = FastAPI(title="Delivery Service API")
 db_config = {
     "user": "root",
     "password": "password",
-    "host": "mysql",
+    "host": "db",
     "database": "food_delivery",
 }
 
@@ -57,18 +57,18 @@ def get_db_connection():
             conn.close()
 
 
-def get_delivery_personnel(person_status="All"):
+def get_delivery_personnel(person_status="all"):
     """
     Fetch delivery personnel from database based on their status
     Args:
-        person_status (str): Filter personnel by status ('idle', 'en_route', or 'All')
+        person_status (str): Filter personnel by status ('idle', 'en_route', or 'all')
     Returns:
         list: List of delivery personnel matching the status criteria
     """
     if person_status == "idle":
         query = "SELECT * FROM delivery_persons WHERE person_status = 'idle';"
     elif person_status == "en_route":
-        query = "SELECT * FROM delivery_persons WHERE person_status = 'en route';"
+        query = "SELECT * FROM delivery_persons WHERE person_status = 'en_route';"
     else:
         query = "SELECT * FROM delivery_persons;"
 
@@ -81,11 +81,11 @@ def get_delivery_personnel(person_status="All"):
             cursor.close()
 
 
-def get_list_of_deliveries(delivery_type="All"):
+def get_list_of_deliveries(delivery_type="all"):
     """
     Retrieve deliveries from database based on their type
     Args:
-        delivery_type (str): Filter deliveries by type ('active', 'completed', or 'All')
+        delivery_type (str): Filter deliveries by type ('active', 'completed', or 'all')
     Returns:
         list: List of deliveries matching the type criteria
     """
@@ -199,7 +199,7 @@ def close_delivery_record(delivery_id):
             cursor.close()
 
 
-def process_delivery(delivery_id):
+def process_delivery(delivery_id, delivery_person_id):
     """
     Process the delivery simulation
     Args:
@@ -213,8 +213,14 @@ def process_delivery(delivery_id):
     # and makes the delivery person `idle` again only after twice the time is taken to deliver the order
     # because the delivery person needs to get back to the restaurant
     # The stock is updated when the delivery person is assigned the order
+    import time
+
     print(f"Processing delivery {delivery_id}")
-    pass
+    update_delivery_person_status(delivery_person_id, "en_route")
+    time.sleep(2 * 60)  # Simulating a 5-minute delivery
+    print(f"Delivery {delivery_id} completed")
+    close_delivery_record(delivery_id)
+    update_delivery_person_status(delivery_person_id, "idle")
 
 
 @app.get("/delivery_persons", response_model=List[DeliveryPerson])
@@ -282,8 +288,6 @@ async def assign_delivery(request: AssignDeliveryRequest):
     delivery_person_id = delivery_person["id"]
     delivery_id = create_delivery_record(request.order_id, delivery_person_id)
     process_delivery(delivery_id, request.customer_distance)
-    update_delivery_person_status(delivery_person_id, "en route")
-
     return {"delivery_id": delivery_id, "delivery_person": delivery_person}
 
 

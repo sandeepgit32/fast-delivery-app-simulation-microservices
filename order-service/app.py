@@ -15,13 +15,13 @@ app = FastAPI(title="Order Service API")
 db_config = {
     "user": "root",
     "password": "password",
-    "host": "mysql",
+    "host": "db",
     "database": "food_delivery",
 }
 
 
 class OrderItem(BaseModel):
-    item_id: str
+    item_id: int
     quantity: int
 
 
@@ -213,7 +213,7 @@ def get_order_details(order_id):
 async def process_order(order_id, customer_distance):
     """Process an order by requesting delivery assignment."""
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(timeout=900.0) as client:
             response = await client.post(
                 "http://delivery-service:5002/assign_delivery",
                 json={"order_id": order_id, "customer_distance": customer_distance},
