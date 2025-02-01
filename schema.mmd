@@ -1,0 +1,42 @@
+erDiagram
+    orders ||--o{ order_items : contains
+    orders ||--o{ deliveries : has
+    delivery_persons ||--o{ deliveries : performs
+    stocks ||--o{ order_items : includes
+
+    orders {
+        varchar id PK
+        datetime order_time
+        varchar customer_name
+        varchar customer_distance
+        varchar order_status
+    }
+
+    order_items {
+        int id PK
+        int order_id FK
+        int item_id FK
+        int quantity
+    }
+
+    deliveries {
+        int id PK
+        int order_id FK
+        int delivery_person_id FK
+        varchar delivery_status
+        datetime created_at
+        datetime delivered_at
+    }
+
+    stocks {
+        varchar item_id PK
+        varchar item_name
+        int quantity
+    }
+
+    delivery_persons {
+        int id PK
+        varchar name
+        varchar phone_number
+        varchar person_status
+    }

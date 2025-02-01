@@ -21,9 +21,7 @@ services:
     ports:
       - "5001:5001"
     depends_on:
-      - mysql
-      - stock-service
-      - delivery-service
+      - db
     networks:
       - food_delivery_network
 
@@ -32,8 +30,8 @@ services:
     ports:
       - "5002:5002"
     depends_on:
-      - redis
-      - mysql
+      - db
+      # - redis
     networks:
       - food_delivery_network
 
@@ -42,41 +40,41 @@ services:
     ports:
       - "5003:5003"
     depends_on:
-      - mysql
+      - db
     networks:
       - food_delivery_network
 
-  frontend-service:
-    build: ./frontend-service
-    ports:
-      - "8080:8080"
-    depends_on:
-      - api-gateway
-    networks:
-      - food_delivery_network
+  # frontend-service:
+  #   build: ./frontend-service
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     - api-gateway
+  #   networks:
+  #     - food_delivery_network
 
-  mysql:
-    image: mysql:5.7
+  db:
+    build: ./database
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: food_delivery
     ports:
-      - "3306:3306"
+      - "5004:3306"
     volumes:
       - mysql-data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
     networks:
       - food_delivery_network
+    restart: unless-stopped
 
-  redis:
-    image: redis:6.2
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-data:/data
-    networks:
-      - food_delivery_network
+  # redis:
+  #   image: redis:6.2
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis-data:/data
+  #   networks:
+  #     - food_delivery_network
 
 volumes:
   mysql-data:
-  redis-data:
+  # redis-data:

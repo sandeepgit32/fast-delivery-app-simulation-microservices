@@ -1,8 +1,10 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List
 import mysql.connector
+from mysql.connector.errors import Error as MySQLError
 import random
+from contextlib import contextmanager
 
 app = FastAPI(title="Stock Service API")
 
@@ -28,133 +30,87 @@ class StockResponse(BaseModel):
     message: str
 
 
-@app.on_event("startup")
-def init_stock():
-    """Initialize the stock database with random item quantities."""
-    random_items = []
-    for i in range(1, 20):
-        random_items.append((f"item{i}", random.randint(50, 200)))
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.executemany(
-        "INSERT INTO stock (item_name, quantity) VALUES (%s, %s)",
-        random_items,
-    )
-    conn.commit()
-    cursor.close()
-    conn.close()
+@contextmanager
+def get_db_connection():
+    """Context manager for database connections."""
+    conn = None
+    try:
+        conn = mysql.connector.connect(**db_config)
+        yield conn
+    except MySQLError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Database connection failed: {str(e)}",
+        )
+    finally:
+        if conn and conn.is_connected():
+            conn.close()
 
 
 def get_current_stock():
-    """
-    Retrieve all items and their current stock quantities from the database.
-
-    Returns:
-        list: List of dictionaries containing item details:
-            - item_id (int): Unique identifier for the item
-            - item_name (str): Name of the item
-            - quantity (int): Current stock quantity
-    """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM stock;")
-    result = cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return result
+    """Retrieve all items and their current stock quantities."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM stock")
+            return cursor.fetchall()
+        finally:
+            cursor.close()
 
 
 def get_item_stock(item_id):
-    """
-    Retrieve the current stock quantity for a specific item.
-
-    Args:
-        item_id (str): Unique identifier of the item
-
-    Returns:
-        tuple: Item details (item_id, item_name, quantity) or None if item not found
-    """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM stock WHERE item_id = %s", (item_id,))
-    result = cursor.fetchone()
-    cursor.close()
-    conn.close()
-    return result
+    """Retrieve the current stock quantity for a specific item."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor(dictionary=True)
+        try:
+            cursor.execute("SELECT * FROM stock WHERE item_id = %s", (item_id,))
+            return cursor.fetchone()
+        finally:
+            cursor.close()
 
 
 def batch_update_stock(items, operation="add"):
-    """
-    Update stock quantities for multiple items in a single transaction.
-
-    Args:
-        items (list): List of dictionaries containing:
-            - item_id: Unique identifier of the item
-            - quantity: Amount to add or remove
-        operation (str): Either "add" or "remove" to increase or decrease stock
-
-    Returns:
-        tuple: (dict, int) containing response message and HTTP status code
-
-    Raises:
-        mysql.connector.Error: If database operation fails
-    """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    try:
-        # Prepare batch update query
-        if operation == "add":
+    """Update stock quantities for multiple items in a single transaction."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
             query = """
                 UPDATE stock 
-                SET quantity = quantity + %s 
+                SET quantity = quantity {} %s 
                 WHERE item_id = %s
-            """
-        else:
-            query = """
-                UPDATE stock 
-                SET quantity = quantity - %s 
-                WHERE item_id = %s
-            """
-        # Execute batch update
-        cursor.executemany(
-            query, [(item["quantity"], item["item_id"]) for item in items]
-        )
-        conn.commit()
-        return {"message": "Stock updated successfully"}, 200
+            """.format(
+                "+" if operation == "add" else "-"
+            )
 
-    except mysql.connector.Error as err:
-        return {"error": str(err)}, 400
-    finally:
-        cursor.close()
-        conn.close()
+            cursor.executemany(query, [(item.quantity, item.item_id) for item in items])
+            conn.commit()
+            return {"message": "Stock updated successfully"}, 200
+        except MySQLError as err:
+            conn.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
+            )
+        finally:
+            cursor.close()
 
 
 def validate_stock(items):
-    """
-    Validate if requested stock operations are possible.
-
-    Args:
-        items (list): List of dictionaries containing:
-            - item_id: Unique identifier of the item
-            - quantity: Amount to validate
-
-    Returns:
-        tuple: (bool, str) containing:
-            - bool: True if operation is valid, False otherwise
-            - str: Error message if operation is invalid, None otherwise
-    """
-    conn = mysql.connector.connect(**db_config)
-    cursor = conn.cursor()
-    for item in items:
-        cursor.execute(
-            "SELECT quantity FROM stock WHERE item_id = %s", (item["item_id"],)
-        )
-        result = cursor.fetchone()
-        if not result:
-            return False, f"Item {item['item_id']} not found"
-        if result[0] - item["quantity"] < 0:
-            return False, f"Insufficient stock for item {item['item_id']}"
-    return True, None
+    """Validate if requested stock operations are possible."""
+    with get_db_connection() as conn:
+        cursor = conn.cursor()
+        try:
+            for item in items:
+                cursor.execute(
+                    "SELECT quantity FROM stock WHERE item_id = %s", (item.item_id,)
+                )
+                result = cursor.fetchone()
+                if not result:
+                    return False, f"Item {item.item_id} not found"
+                if result[0] - item.quantity < 0:
+                    return False, f"Insufficient stock for item {item.item_id}"
+            return True, None
+        finally:
+            cursor.close()
 
 
 @app.post("/add_stock", response_model=StockResponse)

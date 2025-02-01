@@ -18,7 +18,7 @@ def log_data(endpoint, data):
 
 def collect_logs():
     endpoints = {
-        "stocks": "http://stock-service:5003/current_stocks",
+        "stock": "http://stock-service:5003/current_stock",
         "orders": "http://order-service:5001/orders",
         "active_orders": "http://order-service:5001/orders/active",
         "completed_orders": "http://order-service:5001/orders/completed"

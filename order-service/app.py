@@ -4,7 +4,7 @@ from typing import List, Optional
 
 import httpx
 import mysql.connector
-from mysql.connector import Error as MySQLError
+from mysql.connector.errors import Error as MySQLError
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 from contextlib import contextmanager

@@ -16,5 +16,5 @@ COPY . .
 # Expose the port the app runs on
 EXPOSE 5003
 
-# Run the application
-CMD ["python", "app.py"]
+# Run the application using uvicorn server
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5003", "--reload"]

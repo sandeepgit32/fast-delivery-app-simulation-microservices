@@ -4,8 +4,9 @@ from typing import List, Optional
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel
 import mysql.connector
-from mysql.connector import MySQLError
+from mysql.connector.errors import Error as MySQLError
 from contextlib import contextmanager
+
 
 app = FastAPI(title="Delivery Service API")
 
@@ -70,7 +71,7 @@ def get_delivery_personnel(person_status="All"):
         query = "SELECT * FROM delivery_persons WHERE person_status = 'en route';"
     else:
         query = "SELECT * FROM delivery_persons;"
-        
+
     with get_db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         try:
@@ -94,7 +95,7 @@ def get_list_of_deliveries(delivery_type="All"):
         query = "SELECT * FROM deliveries WHERE delivery_status = 'completed';"
     else:
         query = "SELECT * FROM deliveries;"
-        
+
     with get_db_connection() as conn:
         cursor = conn.cursor(dictionary=True)
         try:

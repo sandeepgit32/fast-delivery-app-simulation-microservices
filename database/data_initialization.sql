@@ -1,15 +1,15 @@
 
-INSERT INTO stocks (item_id, item_name, quantity) VALUES
-('ITEM001', 'Product 1', 100),
-('ITEM002', 'Product 2', 150),
-('ITEM003', 'Product 3', 200),
-('ITEM004', 'Product 4', 300),
-('ITEM005', 'Product 5', 250),
-('ITEM006', 'Product 6', 175),
-('ITEM007', 'Product 7', 125),
-('ITEM008', 'Product 8', 400),
-('ITEM009', 'Product 9', 225),
-('ITEM010', 'Product 10', 350);
+INSERT INTO stock (item_name, quantity) VALUES
+('Product 1', 100),
+('Product 2', 150),
+('Product 3', 200),
+('Product 4', 300),
+('Product 5', 250),
+('Product 6', 175),
+('Product 7', 125),
+('Product 8', 400),
+('Product 9', 225),
+('Product 10', 350);
 
 -- Insert sample data into delivery_persons table
 INSERT INTO delivery_persons (name, phone_number, person_status) VALUES

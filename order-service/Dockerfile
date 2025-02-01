@@ -17,4 +17,5 @@ COPY . .
 EXPOSE 5001
 
 # Run the application
-CMD ["python", "app.py"
+# Run the application using uvicorn server
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "5001", "--reload"]
