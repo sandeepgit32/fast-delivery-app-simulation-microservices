@@ -70,7 +70,7 @@ def get_item_stock(item_id):
 
 
 def batch_update_stock(items, operation="add"):
-    """Update stock quantities for multiple items in a single transaction."""
+    """Update stock quantities for multiple items in a single transaction. operation can be 'add' or 'remove'."""
     with get_db_connection() as conn:
         cursor = conn.cursor()
         try:
@@ -97,20 +97,24 @@ def batch_update_stock(items, operation="add"):
 def validate_stock(items):
     """Validate if requested stock operations are possible."""
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        try:
-            for item in items:
-                cursor.execute(
-                    "SELECT quantity FROM stock WHERE item_id = %s", (item.item_id,)
+        with conn.cursor() as cursor:  # Use cursor context manager
+            try:
+                for item in items:
+                    cursor.execute(
+                        "SELECT quantity, item_name FROM stock WHERE item_id = %s",
+                        (item.item_id,),
+                    )
+                    result = cursor.fetchone()
+                    if not result:
+                        return False, f"Item {result[1]} not found"
+                    elif result[0] - item.quantity < 0:
+                        return False, f"Insufficient stock for item {result[1]}"
+                    else:
+                        return True, "Items currently in stock"
+            except MySQLError as err:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
                 )
-                result = cursor.fetchone()
-                if not result:
-                    return False, f"Item {item.item_id} not found"
-                if result[0] - item.quantity < 0:
-                    return False, f"Insufficient stock for item {item.item_id}"
-            return True, None
-        finally:
-            cursor.close()
 
 
 @app.post("/add_stock", response_model=StockResponse)
@@ -136,6 +140,17 @@ async def remove_stock(items: OrderItems):
     if status_code != 200:
         raise HTTPException(status_code=status_code, detail=result["error"])
     return {"message": "Stock updated"}
+
+
+@app.post("/validate_stock", response_model=dict)
+async def validate_stock_operation(items: OrderItems):
+    """
+    Validate if stock operations are possible for multiple items.
+    """
+    status, message = validate_stock(items.order_items)
+    if not status:
+        raise HTTPException(status_code=400, detail=message)
+    return {"status": status, "message": message}
 
 
 @app.get("/current_stock")

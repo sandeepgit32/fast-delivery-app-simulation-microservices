@@ -22,8 +22,11 @@ CREATE TABLE IF NOT EXISTS orders (
     id VARCHAR(50) PRIMARY KEY,
     order_time DATETIME NOT NULL,
     customer_name VARCHAR(255) NOT NULL,
-    customer_distance VARCHAR(255) NOT NULL,
+    customer_distance DECIMAL(20,2) NOT NULL,
     order_status VARCHAR(50) NOT NULL
+    created_at DATETIME NOT NULL,
+    delivered_at DATETIME,
+    response_msg TEXT
 );
 
 -- Create order_items table (depends on orders and stock)
@@ -42,9 +45,6 @@ CREATE TABLE IF NOT EXISTS deliveries (
     id INT AUTO_INCREMENT,
     order_id VARCHAR(50),
     delivery_person_id INT NOT NULL,
-    delivery_status VARCHAR(20) NOT NULL,
-    created_at DATETIME NOT NULL,
-    delivered_at DATETIME,
     PRIMARY KEY (id),
     FOREIGN KEY (order_id) REFERENCES orders(id),
     FOREIGN KEY (delivery_person_id) REFERENCES delivery_persons(id)

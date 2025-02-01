@@ -122,7 +122,7 @@ def fetch_delivery_person(person_id):
             cursor.close()
 
 
-def update_delivery_person_status(person_id, status):
+def update_delivery_person_status(person_id, person_status):
     """
     Update the status of a delivery person
     Args:
@@ -134,7 +134,7 @@ def update_delivery_person_status(person_id, status):
         try:
             cursor.execute(
                 "UPDATE delivery_persons SET person_status = %s WHERE id = %s",
-                (status, person_id),
+                (person_status, person_id),
             )
             conn.commit()
         finally:
@@ -199,7 +199,7 @@ def close_delivery_record(delivery_id):
             cursor.close()
 
 
-def process_delivery(delivery_id, delivery_person_id):
+def process_delivery(delivery_id):
     """
     Process the delivery simulation
     Args:
@@ -214,13 +214,10 @@ def process_delivery(delivery_id, delivery_person_id):
     # because the delivery person needs to get back to the restaurant
     # The stock is updated when the delivery person is assigned the order
     import time
-
     print(f"Processing delivery {delivery_id}")
-    update_delivery_person_status(delivery_person_id, "en_route")
-    time.sleep(2 * 60)  # Simulating a 5-minute delivery
+    time.sleep(5*60)  # Simulating a 5-minute delivery
     print(f"Delivery {delivery_id} completed")
-    close_delivery_record(delivery_id)
-    update_delivery_person_status(delivery_person_id, "idle")
+    pass
 
 
 @app.get("/delivery_persons", response_model=List[DeliveryPerson])
@@ -256,18 +253,6 @@ async def get_all_deliveries():
     return get_list_of_deliveries()
 
 
-@app.get("/deliveries/active", response_model=List[Delivery])
-async def get_active_deliveries():
-    """Get a list of all ongoing deliveries"""
-    return get_list_of_deliveries(delivery_type="active")
-
-
-@app.get("/deliveries/completed", response_model=List[Delivery])
-async def get_completed_deliveries():
-    """Get a list of all completed deliveries"""
-    return get_list_of_deliveries(delivery_type="completed")
-
-
 @app.get("/deliveries/{delivery_id}", response_model=Delivery)
 async def get_delivery(delivery_id: int):
     """Get details of a specific delivery"""
@@ -289,6 +274,17 @@ async def assign_delivery(request: AssignDeliveryRequest):
     delivery_id = create_delivery_record(request.order_id, delivery_person_id)
     process_delivery(delivery_id, request.customer_distance)
     return {"delivery_id": delivery_id, "delivery_person": delivery_person}
+
+
+@app.post("/update_delivery_person_status/{person_id}")
+async def update_delivery_person(person_id: int, person_status: str):
+    """Update the status of a delivery person"""
+    if person_status not in ["idle", "en_route"]:
+        raise HTTPException(
+            status_code=400, detail="Invalid status. Must be 'idle' or 'en_route'"
+        )
+    update_delivery_person_status(person_id, person_status)
+    return {"message": "Delivery person status updated"}
 
 
 if __name__ == "__main__":

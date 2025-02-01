@@ -10,6 +10,9 @@ erDiagram
         varchar customer_name
         varchar customer_distance
         varchar order_status
+        datetime created_at
+        datetime delivered_at
+        text response_msg
     }
 
     order_items {
@@ -23,9 +26,6 @@ erDiagram
         int id PK
         int order_id FK
         int delivery_person_id FK
-        varchar delivery_status
-        datetime created_at
-        datetime delivered_at
     }
 
     stocks {

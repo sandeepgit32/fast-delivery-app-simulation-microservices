@@ -113,7 +113,7 @@ def update_order_items(order_id, items: List[OrderItem]):
             cursor.close()
 
 
-def update_status_of_an_order(order_id, order_status):
+def update_status_of_an_order(order_id, order_status, response_msg=None):
     """
     Update the order_status of an existing order.
 
@@ -124,10 +124,16 @@ def update_status_of_an_order(order_id, order_status):
     with get_db_connection() as conn:
         try:
             cursor = conn.cursor()
-            cursor.execute(
-                "UPDATE orders SET order_status = %s WHERE id = %s",
-                (order_status, order_id),
-            )
+            if response_msg:
+                cursor.execute(
+                    "UPDATE orders SET order_status = %s, response_msg = %s WHERE id = %s",
+                    (order_status, response_msg, order_id),
+                )
+            else:
+                cursor.execute(
+                    "UPDATE orders SET order_status = %s WHERE id = %s",
+                    (order_status, order_id),
+                )
             if cursor.rowcount == 0:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
@@ -275,15 +281,29 @@ async def create_order(order_request: CreateOrderRequest):
     if message != "Delivery person assigned":
         raise HTTPException(status_code=400, detail=message)
 
-    order["message"] = message
+    order["message"] = "Order taken."
     return order
 
 
 @app.post("/close_order/{order_id}", response_model=dict)
 async def close_order(order_id: str):
     """Mark an order as closed."""
-    update_status_of_an_order(order_id, "closed")
-    return {"order_status": "Order completed"}
+    update_status_of_an_order(order_id, "completed", "Order delivered")
+    return {"order_status": "Order delivered"}
+
+
+@app.post("/cancel_order/{order_id}", response_model=dict)
+async def cancel_order(order_id: str, message: str):
+    """Cancel an order."""
+    update_status_of_an_order(order_id, "cancelled", message)
+    return {"order_status": "Order cancelled"}
+
+
+@app.post("/update_msg/{order_id}", response_model=dict)
+async def update_msg(order_id: str, message: str):
+    """Update message for an order."""
+    update_status_of_an_order(order_id, "active", message)
+    return {"order_status": "Order message updated"}
 
 
 @app.get("/orders")
