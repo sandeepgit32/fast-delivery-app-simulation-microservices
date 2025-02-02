@@ -1,8 +1,0 @@
-rate_limits:
-  daily: 200
-  hourly: 50
-
-backend_urls:
-  order_service: 'http://order-service:5001'
-  delivery_service: 'http://delivery-service:5002'
-  stock_service: 'http://stock-service:5003'

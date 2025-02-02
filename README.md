@@ -76,59 +76,63 @@ This project simulates a food delivery system using a microservices architecture
 
 - **Port**: 5000
 - **Endpoints**:
-  - `GET /orders`: Get all orders.
-  - `GET /orders/active`: Get active orders.
-  - `GET /orders/completed`: Get completed orders.
-  - `GET /order/<order_id>`: Get specific order details.
-  - `GET /delivery_persons`: Get all delivery personnel.
-  - `GET /delivery_persons/en_route`: Get personnel currently delivering.
-  - `GET /delivery_persons/idle`: Get available personnel.
-  - `GET /delivery_persons/<person_id>`: Get specific delivery person details.
-  - `GET /deliveries`: Get all deliveries.
-  - `GET /deliveries/active`: Get active deliveries.
-  - `GET /deliveries/completed`: Get completed deliveries.
-  - `GET /deliveries/<delivery_id>`: Get specific delivery details.
-  - `GET /current_stock`: Get all stock levels.
-  - `GET /current_stock/<item_id>`: Get specific item stock level.
-  - `POST /create_order`: Create a new order with customer distance and items.
-  - `POST /close_order/<order_id>`: Complete a specific order.
-  - `POST /assign_delivery`: Assign an order to delivery personnel.
-  - `POST /add_stock`: Add stock quantities for multiple items.
-  - `POST /remove_stock`: Remove stock quantities after validating availability.
+  - `GET /orders`: Get all orders
+  - `GET /orders/active`: Get active orders
+  - `GET /orders/completed`: Get completed orders
+  - `GET /order/{order_id}`: Get specific order details with items availability
+  - `GET /delivery_persons`: Get all delivery personnel
+  - `GET /delivery_persons/en_route`: Get personnel currently delivering
+  - `GET /delivery_persons/idle`: Get available personnel
+  - `GET /delivery_persons/{person_id}`: Get specific delivery person details
+  - `GET /deliveries`: Get all deliveries
+  - `GET /deliveries/{delivery_id}`: Get specific delivery details
+  - `GET /current_stock`: Get all stock levels
+  - `GET /current_stock/{item_id}`: Get specific item stock level
+  - `POST /create_order`: Create a new order with customer details and items
+  - `POST /close_order/{order_id}`: Mark an order as delivered
+  - `POST /cancel_order/{order_id}`: Cancel an order with a message
+  - `POST /update_msg/{order_id}`: Update message for an order
+  - `POST /assign_delivery`: Queue a delivery simulation task
+  - `POST /update_delivery_person_status/{person_id}`: Update delivery person status
+  - `POST /add_stock`: Add stock quantities for multiple items
+  - `POST /remove_stock`: Remove stock quantities after validation
+  - `POST /validate_stock`: Validate if stock operations are possible
 
 #### Order Service
 
 - **Port**: 5001
 - **Endpoints**:
-  - `GET /orders`: Get all orders.
-  - `GET /orders/active`: Get active orders.
-  - `GET /orders/completed`: Get completed orders.
-  - `GET /order/<order_id>`: Get specific order details.
-  - `POST /create_order`: Create a new order with customer distance and items.
-  - `POST /close_order/<order_id>`: Complete a specific order.
+  - `POST /create_order`: Create a new order with customer details and items
+  - `POST /close_order/{order_id}`: Mark an order as delivered
+  - `POST /cancel_order/{order_id}`: Cancel an order with a message
+  - `POST /update_msg/{order_id}`: Update message for an order
+  - `GET /orders`: Get all orders
+  - `GET /orders/active`: Get active orders
+  - `GET /orders/completed`: Get completed orders
+  - `GET /order/{order_id}`: Get specific order details with items
 
 #### Delivery Service
 
 - **Port**: 5002
 - **Endpoints**:
-  - `GET /delivery_persons`: Get all delivery personnel.
-  - `GET /delivery_persons/en_route`: Get personnel currently delivering.
-  - `GET /delivery_persons/idle`: Get available personnel.
-  - `GET /delivery_persons/<person_id>`: Get specific delivery person details.
-  - `GET /deliveries`: Get all deliveries.
-  - `GET /deliveries/active`: Get active deliveries.
-  - `GET /deliveries/completed`: Get completed deliveries.
-  - `GET /deliveries/<delivery_id>`: Get specific delivery details.
-  - `POST /assign_delivery`: Assign an order to delivery personnel.
+  - `GET /delivery_persons`: Get all delivery personnel
+  - `GET /delivery_persons/en_route`: Get personnel currently delivering
+  - `GET /delivery_persons/idle`: Get available personnel
+  - `GET /delivery_persons/{person_id}`: Get specific delivery person details
+  - `GET /deliveries`: Get all deliveries
+  - `GET /deliveries/{delivery_id}`: Get specific delivery details
+  - `POST /assign_delivery`: Queue a delivery simulation task
+  - `POST /update_delivery_person_status/{person_id}`: Update delivery person status
 
 #### Stock Service
 
 - **Port**: 5003
 - **Endpoints**:
-  - `GET /current_stock`: Get all stock levels.
-  - `GET /current_stock/<item_id>`: Get specific item stock level.
-  - `POST /add_stock`: Add stock quantities for multiple items.
-  - `POST /remove_stock`: Remove stock quantities after validating availability.
+  - `POST /add_stock`: Add stock quantities for multiple items
+  - `POST /remove_stock`: Remove stock quantities after validation
+  - `POST /validate_stock`: Validate if stock operations are possible
+  - `GET /current_stock`: Get all stock levels
+  - `GET /current_stock/{item_id}`: Get specific item stock level
 
 #### Frontend Service
 
