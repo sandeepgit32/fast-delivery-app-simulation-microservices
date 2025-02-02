@@ -1,14 +1,14 @@
-from datetime import datetime
-import random
-from typing import List, Optional
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
-import mysql.connector
-from mysql.connector.errors import Error as MySQLError
 from contextlib import contextmanager
+from typing import List
 
+import mysql.connector
+from celery import Celery
+from fastapi import FastAPI, HTTPException, status
+from mysql.connector.errors import Error as MySQLError
+from pydantic import BaseModel
 
 app = FastAPI(title="Delivery Service API")
+celery = Celery("tasks", broker="redis://redis:6379/0")
 
 # MySQL configuration
 db_config = {
@@ -22,22 +22,19 @@ db_config = {
 class DeliveryPerson(BaseModel):
     id: int
     name: str
+    phone_number: str
     person_status: str
-    current_location: Optional[str] = None
 
 
 class Delivery(BaseModel):
     id: int
     order_id: str
     delivery_person_id: int
-    delivery_status: str
-    created_at: datetime
-    completed_at: Optional[datetime] = None
 
 
 class AssignDeliveryRequest(BaseModel):
     order_id: str
-    delivery_person_id: int
+    customer_distance: float
 
 
 @contextmanager
@@ -207,28 +204,6 @@ def create_delivery_record(order_id, delivery_person_id):
                 )
 
 
-def process_delivery(delivery_id):
-    """
-    Process the delivery simulation
-    Args:
-        delivery_id: ID of the delivery to be processed
-    TODO: Implement this function in simulation service
-    """
-    # It has to pass the delivery id to the message queue to simulate the delivery
-    # Based on the delivery id it figures out the order id and the distance fo the customer
-    # It then simulates the delivery by sleeping for the time it would take to deliver the order
-    # Once the delivery is done, it updates the delivery status to completed in the database
-    # and makes the delivery person `idle` again only after twice the time is taken to deliver the order
-    # because the delivery person needs to get back to the restaurant
-    # The stock is updated when the delivery person is assigned the order
-    import time
-
-    print(f"Processing delivery {delivery_id}")
-    time.sleep(5 * 60)  # Simulating a 5-minute delivery
-    print(f"Delivery {delivery_id} completed")
-    pass
-
-
 @app.get("/delivery_persons", response_model=List[DeliveryPerson])
 async def get_delivery_personnel_list():
     """Get a list of all delivery personnel"""
@@ -273,16 +248,9 @@ async def get_delivery(delivery_id: int):
 
 @app.post("/assign_delivery")
 async def assign_delivery(request: AssignDeliveryRequest):
-    """Assign a delivery to an available delivery person"""
-    idle_persons = get_delivery_personnel(person_status="idle")
-    if not idle_persons:
-        raise HTTPException(status_code=400, detail="No delivery personnel available")
-
-    delivery_person = random.choice(idle_persons)
-    delivery_person_id = delivery_person["id"]
-    delivery_id = create_delivery_record(request.order_id, delivery_person_id)
-    process_delivery(delivery_id, request.customer_distance)
-    return {"delivery_id": delivery_id, "delivery_person": delivery_person}
+    """Queue the delivery simulation task"""
+    task = celery.send_task("simulate_delivery", args=[request.order_id])
+    return {"order_id": request.order_id, "task_id": task.id}
 
 
 @app.post("/update_delivery_person_status/{person_id}")

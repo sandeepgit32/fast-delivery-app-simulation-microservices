@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 import httpx
+from celery import Celery
 import mysql.connector
 from mysql.connector.errors import Error as MySQLError
 from fastapi import FastAPI, HTTPException, status
@@ -10,6 +11,7 @@ from pydantic import BaseModel
 from contextlib import contextmanager
 
 app = FastAPI(title="Order Service API")
+celery = Celery("tasks", broker="redis://redis:6379/0")
 
 # MySQL configuration
 db_config = {
@@ -304,17 +306,17 @@ async def create_order(order_request: CreateOrderRequest):
         "customer_distance": order_request.customer_distance,
         "order_status": "active",
         "items": order_request.items,
+        "response_msg": "Order taken",
     }
 
     update_order(order)
     update_order_items(order["id"], order_request.items)
-    message = await process_order(order["id"], order_request.customer_distance)
-
-    if message != "Delivery person assigned":
-        raise HTTPException(status_code=400, detail=message)
-
-    order["message"] = "Order taken."
-    return order
+    """Queue the process_order task"""
+    task = celery.send_task(
+        "process_order",
+        args=[order["id"], order["customer_distance"], order["order_items"]],
+    )
+    return {"order_id": order["id"], "task_id": task.id}
 
 
 @app.post("/close_order/{order_id}", response_model=dict)

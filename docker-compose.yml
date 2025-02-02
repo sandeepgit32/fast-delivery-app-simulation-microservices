@@ -16,6 +16,19 @@ services:
     networks:
       - food_delivery_network
 
+  tasks:
+    build: ./tasks
+    depends_on:
+      - redis
+      - order-service
+      - delivery-service
+      - stock-service
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    networks:
+      - food_delivery_network
+
   order-service:
     build: ./order-service
     ports:
@@ -31,7 +44,7 @@ services:
       - "5002:5002"
     depends_on:
       - db
-      # - redis
+      - redis
     networks:
       - food_delivery_network
 
@@ -66,15 +79,15 @@ services:
       - food_delivery_network
     restart: unless-stopped
 
-  # redis:
-  #   image: redis:6.2
-  #   ports:
-  #     - "6379:6379"
-  #   volumes:
-  #     - redis-data:/data
-  #   networks:
-  #     - food_delivery_network
+  redis:
+    image: redis:6.2
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - food_delivery_network
 
 volumes:
   mysql-data:
-  # redis-data:
+  redis-data:

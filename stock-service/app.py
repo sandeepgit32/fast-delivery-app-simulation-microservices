@@ -50,48 +50,54 @@ def get_db_connection():
 def get_current_stock():
     """Retrieve all items and their current stock quantities."""
     with get_db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute("SELECT * FROM stock")
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute("SELECT * FROM stock")
+                return cursor.fetchall()
+            except MySQLError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to get current stock: {str(e)}",
+                )
 
 
 def get_item_stock(item_id):
     """Retrieve the current stock quantity for a specific item."""
     with get_db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute("SELECT * FROM stock WHERE item_id = %s", (item_id,))
-            return cursor.fetchone()
-        finally:
-            cursor.close()
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute("SELECT * FROM stock WHERE item_id = %s", (item_id,))
+                return cursor.fetchone()
+            except MySQLError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to get stock for item {item_id}: {str(e)}",
+                )
 
 
 def batch_update_stock(items, operation="add"):
     """Update stock quantities for multiple items in a single transaction. operation can be 'add' or 'remove'."""
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        try:
-            query = """
-                UPDATE stock 
-                SET quantity = quantity {} %s 
-                WHERE item_id = %s
-            """.format(
-                "+" if operation == "add" else "-"
-            )
+        with conn.cursor() as cursor:
+            try:
+                query = """
+                    UPDATE stock 
+                    SET quantity = quantity {} %s 
+                    WHERE item_id = %s
+                """.format(
+                    "+" if operation == "add" else "-"
+                )
 
-            cursor.executemany(query, [(item.quantity, item.item_id) for item in items])
-            conn.commit()
-            return {"message": "Stock updated successfully"}, 200
-        except MySQLError as err:
-            conn.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
-            )
-        finally:
-            cursor.close()
+                cursor.executemany(
+                    query, [(item.quantity, item.item_id) for item in items]
+                )
+                conn.commit()
+                return {"message": "Stock updated successfully"}, 200
+            except MySQLError as err:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
+                )
 
 
 def validate_stock(items):
