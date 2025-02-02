@@ -24,7 +24,6 @@ CREATE TABLE IF NOT EXISTS orders (
     customer_name VARCHAR(255) NOT NULL,
     customer_distance DECIMAL(20,2) NOT NULL,
     order_status VARCHAR(50) NOT NULL
-    created_at DATETIME NOT NULL,
     delivered_at DATETIME,
     response_msg TEXT
 );

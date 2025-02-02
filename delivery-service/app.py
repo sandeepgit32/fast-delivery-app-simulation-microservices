@@ -37,7 +37,7 @@ class Delivery(BaseModel):
 
 class AssignDeliveryRequest(BaseModel):
     order_id: str
-    customer_distance: float
+    delivery_person_id: int
 
 
 @contextmanager
@@ -73,12 +73,16 @@ def get_delivery_personnel(person_status="all"):
         query = "SELECT * FROM delivery_persons;"
 
     with get_db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute(query)
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute(query)
+                return cursor.fetchall()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve delivery persons: {str(e)}",
+                )
 
 
 def get_list_of_deliveries(delivery_type="all"):
@@ -97,12 +101,16 @@ def get_list_of_deliveries(delivery_type="all"):
         query = "SELECT * FROM deliveries;"
 
     with get_db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute(query)
-            return cursor.fetchall()
-        finally:
-            cursor.close()
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute(query)
+                return cursor.fetchall()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve deliveries: {str(e)}",
+                )
 
 
 def fetch_delivery_person(person_id):
@@ -114,12 +122,18 @@ def fetch_delivery_person(person_id):
         dict: Delivery person details or None if not found
     """
     with get_db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute("SELECT * FROM delivery_persons WHERE id = %s", (person_id,))
-            return cursor.fetchone()
-        finally:
-            cursor.close()
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute(
+                    "SELECT * FROM delivery_persons WHERE id = %s", (person_id,)
+                )
+                return cursor.fetchone()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve delivery person details: {str(e)}",
+                )
 
 
 def update_delivery_person_status(person_id, person_status):
@@ -130,15 +144,19 @@ def update_delivery_person_status(person_id, person_status):
         person_status (str): New person_status to be set
     """
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "UPDATE delivery_persons SET person_status = %s WHERE id = %s",
-                (person_status, person_id),
-            )
-            conn.commit()
-        finally:
-            cursor.close()
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    "UPDATE delivery_persons SET person_status = %s WHERE id = %s",
+                    (person_status, person_id),
+                )
+                conn.commit()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to update delivery person status: {str(e)}",
+                )
 
 
 def fetch_delivery(delivery_id):
@@ -150,12 +168,16 @@ def fetch_delivery(delivery_id):
         dict: Delivery details or None if not found
     """
     with get_db_connection() as conn:
-        cursor = conn.cursor(dictionary=True)
-        try:
-            cursor.execute("SELECT * FROM deliveries WHERE id = %s", (delivery_id,))
-            return cursor.fetchone()
-        finally:
-            cursor.close()
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute("SELECT * FROM deliveries WHERE id = %s", (delivery_id,))
+                return cursor.fetchone()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve delivery details: {str(e)}",
+                )
 
 
 def create_delivery_record(order_id, delivery_person_id):
@@ -168,35 +190,21 @@ def create_delivery_record(order_id, delivery_person_id):
         ID of the created delivery record
     """
     with get_db_connection() as conn:
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "INSERT INTO deliveries (order_id, delivery_person_id, delivery_status, created_at) VALUES (%s, %s, %s, %s)",
-                (order_id, delivery_person_id, "active", datetime.now()),
-            )
-            delivery_id = cursor.lastrowid
-            conn.commit()
-            return delivery_id
-        finally:
-            cursor.close()
-
-
-def close_delivery_record(delivery_id):
-    """
-    Mark a delivery as completed in the database
-    Args:
-        delivery_id: ID of the delivery to be completed
-    """
-    with get_db_connection() as conn:
-        cursor = conn.cursor()
-        try:
-            cursor.execute(
-                "UPDATE deliveries SET delivery_status = 'completed', completed_at = %s WHERE id = %s",
-                (datetime.now(), delivery_id),
-            )
-            conn.commit()
-        finally:
-            cursor.close()
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    "INSERT INTO deliveries (order_id, delivery_person_id) VALUES (%s, %s)",
+                    (order_id, delivery_person_id),
+                )
+                delivery_id = cursor.lastrowid
+                conn.commit()
+                return delivery_id
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create delivery record: {str(e)}",
+                )
 
 
 def process_delivery(delivery_id):
@@ -214,8 +222,9 @@ def process_delivery(delivery_id):
     # because the delivery person needs to get back to the restaurant
     # The stock is updated when the delivery person is assigned the order
     import time
+
     print(f"Processing delivery {delivery_id}")
-    time.sleep(5*60)  # Simulating a 5-minute delivery
+    time.sleep(5 * 60)  # Simulating a 5-minute delivery
     print(f"Delivery {delivery_id} completed")
     pass
 

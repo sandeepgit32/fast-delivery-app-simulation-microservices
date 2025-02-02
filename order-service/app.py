@@ -61,29 +61,27 @@ def get_db_connection():
 def update_order(order):
     """Insert a new order into the orders table."""
     with get_db_connection() as conn:
-        try:
-            cursor = conn.cursor()
-            cursor.execute(
-                """INSERT INTO orders 
-                   (id, order_time, customer_name, customer_distance, order_status) 
-                   VALUES (%s, %s, %s, %s, %s)""",
-                (
-                    order["id"],
-                    order["order_time"],
-                    order["customer_name"],
-                    order["customer_distance"],
-                    order["order_status"],
-                ),
-            )
-            conn.commit()
-        except MySQLError as e:
-            conn.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create order: {str(e)}",
-            )
-        finally:
-            cursor.close()
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    """INSERT INTO orders 
+                    (id, order_time, customer_name, customer_distance, order_status) 
+                    VALUES (%s, %s, %s, %s, %s)""",
+                    (
+                        order["id"],
+                        order["order_time"],
+                        order["customer_name"],
+                        order["customer_distance"],
+                        order["order_status"],
+                    ),
+                )
+                conn.commit()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create order: {str(e)}",
+                )
 
 
 def update_order_items(order_id, items: List[OrderItem]):
@@ -95,22 +93,20 @@ def update_order_items(order_id, items: List[OrderItem]):
         items (List[OrderItem]): List of OrderItem objects
     """
     with get_db_connection() as conn:
-        try:
-            cursor = conn.cursor()
-            values = [(order_id, item.item_id, item.quantity) for item in items]
-            cursor.executemany(
-                "INSERT INTO order_items (order_id, item_id, quantity) VALUES (%s, %s, %s)",
-                values,
-            )
-            conn.commit()
-        except MySQLError as e:
-            conn.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to create order items: {str(e)}",
-            )
-        finally:
-            cursor.close()
+        with conn.cursor() as cursor:
+            try:
+                values = [(order_id, item.item_id, item.quantity) for item in items]
+                cursor.executemany(
+                    "INSERT INTO order_items (order_id, item_id, quantity) VALUES (%s, %s, %s)",
+                    values,
+                )
+                conn.commit()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create order items: {str(e)}",
+                )
 
 
 def update_status_of_an_order(order_id, order_status, response_msg=None):
@@ -118,35 +114,74 @@ def update_status_of_an_order(order_id, order_status, response_msg=None):
     Update the order_status of an existing order.
 
     Args:
-        order_id (str): Unique identifier for the order
-        order_status (str): New order_status to be set
+        order_id (str): Unique identifier for the order'
+        order_status (str): 'completed' or 'cancelled'
     """
     with get_db_connection() as conn:
-        try:
-            cursor = conn.cursor()
-            if response_msg:
-                cursor.execute(
-                    "UPDATE orders SET order_status = %s, response_msg = %s WHERE id = %s",
-                    (order_status, response_msg, order_id),
-                )
-            else:
-                cursor.execute(
-                    "UPDATE orders SET order_status = %s WHERE id = %s",
-                    (order_status, order_id),
-                )
-            if cursor.rowcount == 0:
+        with conn.cursor() as cursor:
+            try:
+                if order_status == "completed":
+                    delivered_at = datetime.now().isoformat()
+                    if response_msg:
+                        cursor.execute(
+                            "UPDATE orders SET order_status = %s, delivered_at = %s, response_msg = %s WHERE id = %s",
+                            (order_status, delivered_at, response_msg, order_id),
+                        )
+                    else:
+                        cursor.execute(
+                            "UPDATE orders SET order_status = %s, delivered_at = %s WHERE id = %s",
+                            (order_status, delivered_at, order_id),
+                        )
+                else:
+                    if response_msg:
+                        cursor.execute(
+                            "UPDATE orders SET order_status = %s, response_msg = %s WHERE id = %s",
+                            (order_status, response_msg, order_id),
+                        )
+                    else:
+                        cursor.execute(
+                            "UPDATE orders SET order_status = %s WHERE id = %s",
+                            (order_status, order_id),
+                        )
+                if cursor.rowcount == 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+                    )
+                conn.commit()
+            except MySQLError as e:
+                conn.rollback()
                 raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to update order status: {str(e)}",
                 )
-            conn.commit()
-        except MySQLError as e:
-            conn.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to update order status: {str(e)}",
-            )
-        finally:
-            cursor.close()
+
+
+def update_msg_of_an_order(order_id, response_msg):
+    """
+    Update the response message of an existing order.
+
+    Args:
+        order_id (str): Unique identifier for the order
+        response_msg (str): Response message to be updated
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute(
+                    "UPDATE orders SET response_msg = %s WHERE id = %s",
+                    (response_msg, order_id),
+                )
+                if cursor.rowcount == 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+                    )
+                conn.commit()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to update order message: {str(e)}",
+                )
 
 
 def get_all_orders(order_type="All"):
@@ -160,23 +195,22 @@ def get_all_orders(order_type="All"):
         list: List of order dictionaries
     """
     with get_db_connection() as conn:
-        try:
-            cursor = conn.cursor(dictionary=True)
-            if order_type == "active":
-                query = "SELECT * FROM orders WHERE order_status = 'active';"
-            elif order_type == "completed":
-                query = "SELECT * FROM orders WHERE order_status = 'completed';"
-            else:
-                query = "SELECT * FROM orders;"
-            cursor.execute(query)
-            return cursor.fetchall()
-        except MySQLError as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve orders: {str(e)}",
-            )
-        finally:
-            cursor.close()
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor = conn.cursor(dictionary=True)
+                if order_type == "active":
+                    query = "SELECT * FROM orders WHERE order_status = 'active';"
+                elif order_type == "completed":
+                    query = "SELECT * FROM orders WHERE order_status = 'completed';"
+                else:
+                    query = "SELECT * FROM orders;"
+                cursor.execute(query)
+                return cursor.fetchall()
+            except MySQLError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve orders: {str(e)}",
+                )
 
 
 def get_order_details(order_id):
@@ -190,30 +224,28 @@ def get_order_details(order_id):
         dict: Order details with items or None if not found
     """
     with get_db_connection() as conn:
-        try:
-            cursor = conn.cursor(dictionary=True)
-            cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
-            order_details = cursor.fetchone()
-            if not order_details:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
-                )
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+                order_details = cursor.fetchone()
+                if not order_details:
+                    raise HTTPException(
+                        status_code=status.HTTP_404_NOT_FOUND, detail="Order not found"
+                    )
 
-            get_items_query = """SELECT oi.item_id, s.item_name, oi.quantity 
-                                FROM order_items oi
-                                JOIN stock s ON oi.item_id = s.item_id
-                                WHERE order_id = %s"""
-            cursor.execute(get_items_query, (order_id,))
-            items = cursor.fetchall()
-            order_details["items"] = items
-            return order_details
-        except MySQLError as e:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Failed to retrieve order details: {str(e)}",
-            )
-        finally:
-            cursor.close()
+                get_items_query = """SELECT oi.item_id, s.item_name, oi.quantity 
+                                    FROM order_items oi
+                                    JOIN stock s ON oi.item_id = s.item_id
+                                    WHERE order_id = %s"""
+                cursor.execute(get_items_query, (order_id,))
+                items = cursor.fetchall()
+                order_details["items"] = items
+                return order_details
+            except MySQLError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve order details: {str(e)}",
+                )
 
 
 async def process_order(order_id, customer_distance):
@@ -302,7 +334,7 @@ async def cancel_order(order_id: str, message: str):
 @app.post("/update_msg/{order_id}", response_model=dict)
 async def update_msg(order_id: str, message: str):
     """Update message for an order."""
-    update_status_of_an_order(order_id, "active", message)
+    update_msg_of_an_order(order_id, message)
     return {"order_status": "Order message updated"}
 
 
