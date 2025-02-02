@@ -1,5 +1,0 @@
-mysql:
-  user: 'root'
-  password: 'password'
-  host: 'mysql'
-  database: 'food_delivery'

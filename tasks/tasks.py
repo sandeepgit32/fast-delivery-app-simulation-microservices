@@ -1,8 +1,9 @@
+import logging
 import os
 import random
 import time
+
 import requests
-import logging
 from celery import Celery
 
 # Configure logging

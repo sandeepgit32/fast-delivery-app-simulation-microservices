@@ -1,14 +1,13 @@
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 from typing import List, Optional
 
-import httpx
-from celery import Celery
 import mysql.connector
-from mysql.connector.errors import Error as MySQLError
+from celery import Celery
 from fastapi import FastAPI, HTTPException, status
+from mysql.connector.errors import Error as MySQLError
 from pydantic import BaseModel
-from contextlib import contextmanager
 
 app = FastAPI(title="Order Service API")
 celery = Celery("tasks", broker="redis://redis:6379/0")
@@ -166,6 +165,9 @@ def update_msg_of_an_order(order_id, response_msg):
         order_id (str): Unique identifier for the order
         response_msg (str): Response message to be updated
     """
+    if not response_msg or not isinstance(response_msg, str):
+        raise ValueError("Response message must be a non-empty string")
+    
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             try:
@@ -248,38 +250,6 @@ def get_order_details(order_id):
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to retrieve order details: {str(e)}",
                 )
-
-
-async def process_order(order_id, customer_distance):
-    """Process an order by requesting delivery assignment."""
-    try:
-        async with httpx.AsyncClient(timeout=900.0) as client:
-            response = await client.post(
-                "http://delivery-service:5002/assign_delivery",
-                json={"order_id": order_id, "customer_distance": customer_distance},
-            )
-            response.raise_for_status()
-            data = response.json()
-            if "error" in data:
-                await update_status_of_an_order(order_id, "failed")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail=data["error"]
-                )
-            return "Delivery person assigned"
-
-    except httpx.TimeoutException:
-        await update_status_of_an_order(order_id, "failed")
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail="Delivery service timeout",
-        )
-
-    except httpx.RequestError as e:
-        await update_status_of_an_order(order_id, "failed")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"Delivery service error: {str(e)}",
-        )
 
 
 @app.post(

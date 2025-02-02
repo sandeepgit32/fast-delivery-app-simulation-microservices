@@ -1,10 +1,10 @@
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel
-from typing import List
-import mysql.connector
-from mysql.connector.errors import Error as MySQLError
-import random
 from contextlib import contextmanager
+from typing import List
+
+import mysql.connector
+from fastapi import FastAPI, HTTPException, status
+from mysql.connector.errors import Error as MySQLError
+from pydantic import BaseModel
 
 app = FastAPI(title="Stock Service API")
 

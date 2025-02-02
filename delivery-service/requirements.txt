@@ -4,3 +4,4 @@ mysql-connector-python
 pytest
 pytest-mock
 pydantic
+celery==5.3.1
