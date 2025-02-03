@@ -1,69 +1,45 @@
 <template>
-  <div id="app">
-    <h1>Food Delivery Simulation App</h1>
-    <div id="map"></div>
-    <div id="graphs">
-      <plotly-graph :data="orderData" :layout="orderLayout"></plotly-graph>
-      <plotly-graph :data="stockData" :layout="stockLayout"></plotly-graph>
+  <div class="app-container">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+      <div class="container">
+        <span class="navbar-brand">Food Delivery System</span>
+        <div class="navbar-nav">
+          <router-link class="nav-link" to="/orders">Orders</router-link>
+          <router-link class="nav-link" to="/delivery-persons">Delivery Persons</router-link>
+          <router-link class="nav-link" to="/stock">Stock</router-link>
+        </div>
+      </div>
+    </nav>
+    
+    <div class="container mt-4">
+      <router-view></router-view>
     </div>
   </div>
 </template>
 
 <script>
-import PlotlyGraph from './components/PlotlyGraph.vue';
+import PlotlyGraph from './components/PlotlyGraph.vue'
+import SimulationControls from './components/SimulationControls.vue'
 
 export default {
   name: 'App',
   components: {
-    PlotlyGraph
-  },
-  data() {
-    return {
-      orderData: [],
-      orderLayout: {},
-      stockData: [],
-      stockLayout: {}
-    };
-  },
-  mounted() {
-    this.loadMap();
-    this.loadGraphs();
-  },
-  methods: {
-    loadMap() {
-      // Initialize Google Maps
-      const map = new google.maps.Map(document.getElementById('map'), {
-        center: { lat: -34.397, lng: 150.644 },
-        zoom: 8
-      });
-    },
-    loadGraphs() {
-      // Fetch order and stock data from the backend and update Plotly graphs
-      fetch('/api/orders')
-        .then(response => response.json())
-        .then(data => {
-          this.orderData = data;
-          this.orderLayout = { title: 'Order Fulfillment' };
-        });
-
-      fetch('/api/stock')
-        .then(response => response.json())
-        .then(data => {
-          this.stockData = data;
-          this.stockLayout = { title: 'Stock Levels' };
-        });
-    }
+    PlotlyGraph,
+    SimulationControls
   }
-};
+}
 </script>
 
 <style>
-#map {
-  height: 400px;
-  width: 100%;
+.app-container {
+  min-height: 100vh;
+  background-color: #f5f5f5;
 }
-#graphs {
-  display: flex;
-  justify-content: space-around;
+.nav-link {
+  color: #fff !important;
+  margin-right: 1rem;
+}
+.nav-link.active {
+  font-weight: bold;
 }
 </style>
