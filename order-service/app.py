@@ -166,8 +166,11 @@ def update_msg_of_an_order(order_id, response_msg):
         response_msg (str): Response message to be updated
     """
     if not response_msg or not isinstance(response_msg, str):
-        raise ValueError("Response message must be a non-empty string")
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message must be a non-empty string",
+        )
+
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             try:
@@ -331,10 +334,7 @@ async def get_completed_orders():
 @app.get("/order/{order_id}")
 async def get_order(order_id: str):
     """Retrieve details of a specific order."""
-    order_details = get_order_details(order_id)
-    if not order_details:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return order_details
+    return get_order_details(order_id)
 
 
 if __name__ == "__main__":
