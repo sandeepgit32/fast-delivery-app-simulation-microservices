@@ -9,6 +9,8 @@ services:
     build: ./api-gateway
     ports:
       - "5000:5000"
+    volumes:
+      - ./api-gateway:/app
     depends_on:
       - order-service
       - delivery-service
@@ -18,6 +20,8 @@ services:
 
   tasks:
     build: ./tasks
+    volumes:
+      - ./tasks:/app
     depends_on:
       - redis
       - order-service
@@ -33,6 +37,8 @@ services:
     build: ./order-service
     ports:
       - "5001:5001"
+    volumes:
+      - ./order-service:/app
     depends_on:
       - db
     networks:
@@ -42,6 +48,8 @@ services:
     build: ./delivery-service
     ports:
       - "5002:5002"
+    volumes:
+      - ./delivery-service:/app
     depends_on:
       - db
       - redis
@@ -52,6 +60,8 @@ services:
     build: ./stock-service
     ports:
       - "5003:5003"
+    volumes:
+      - ./stock-service:/app
     depends_on:
       - db
     networks:
@@ -61,6 +71,8 @@ services:
   #   build: ./frontend-service
   #   ports:
   #     - "8080:8080"
+  #   volumes:
+  #     - ./frontend-service:/app
   #   depends_on:
   #     - api-gateway
   #   networks:
