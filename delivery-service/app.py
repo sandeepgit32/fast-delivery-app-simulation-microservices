@@ -82,20 +82,13 @@ def get_delivery_personnel(person_status="all"):
                 )
 
 
-def get_list_of_deliveries(delivery_type="all"):
+def get_list_of_deliveries():
     """
-    Retrieve deliveries from database based on their type
-    Args:
-        delivery_type (str): Filter deliveries by type ('active', 'completed', or 'all')
+    Retrieve deliveries from database
     Returns:
         list: List of deliveries matching the type criteria
     """
-    if delivery_type == "active":
-        query = "SELECT * FROM deliveries WHERE delivery_status = 'active';"
-    elif delivery_type == "completed":
-        query = "SELECT * FROM deliveries WHERE delivery_status = 'completed';"
-    else:
-        query = "SELECT * FROM deliveries;"
+    query = "SELECT * FROM deliveries;"
 
     with get_db_connection() as conn:
         with conn.cursor(dictionary=True) as cursor:
@@ -222,13 +215,10 @@ async def get_idle_delivery_personnel_list():
     return get_delivery_personnel(person_status="idle")
 
 
-@app.get("/delivery_persons/{person_id}", response_model=DeliveryPerson)
+@app.get("/delivery_person/{person_id}", response_model=DeliveryPerson)
 async def get_delivery_person(person_id: int):
     """Get details of a specific delivery person"""
-    person = fetch_delivery_person(person_id)
-    if not person:
-        raise HTTPException(status_code=404, detail="Delivery person not found")
-    return person
+    return fetch_delivery_person(person_id)
 
 
 @app.get("/deliveries", response_model=List[Delivery])
@@ -237,7 +227,7 @@ async def get_all_deliveries():
     return get_list_of_deliveries()
 
 
-@app.get("/deliveries/{delivery_id}", response_model=Delivery)
+@app.get("/delivery/{delivery_id}", response_model=Delivery)
 async def get_delivery(delivery_id: int):
     """Get details of a specific delivery"""
     delivery = fetch_delivery(delivery_id)
