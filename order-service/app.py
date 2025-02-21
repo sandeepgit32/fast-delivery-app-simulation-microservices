@@ -59,6 +59,41 @@ def get_db_connection():
             conn.close()
 
 
+def update_order_with_items(order, items):
+    """Insert a new order and its items in a single transaction."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            try:
+                # Insert order
+                cursor.execute(
+                    """INSERT INTO orders 
+                    (id, order_time, customer_name, customer_distance, order_status) 
+                    VALUES (%s, %s, %s, %s, %s)""",
+                    (
+                        order["id"],
+                        order["order_time"],
+                        order["customer_name"],
+                        order["customer_distance"],
+                        order["order_status"],
+                    ),
+                )
+
+                # Insert order items
+                values = [(order["id"], item.item_id, item.quantity) for item in items]
+                cursor.executemany(
+                    "INSERT INTO order_items (order_id, item_id, quantity) VALUES (%s, %s, %s)",
+                    values,
+                )
+
+                conn.commit()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create order with items: {str(e)}",
+                )
+
+
 def update_order(order):
     """Insert a new order into the orders table."""
     with get_db_connection() as conn:
@@ -281,10 +316,9 @@ async def create_order(order_request: CreateOrderRequest):
         "items": order_request.items,
         "response_msg": "Order taken",
     }
+    update_order_with_items(order, order_request.items)
 
-    update_order(order)
-    update_order_items(order["id"], order_request.items)
-    """Queue the process_order task"""
+    # Queue the process_order task
     task = celery.send_task(
         "process_order",
         args=[order["id"], order["customer_distance"], order["order_items"]],

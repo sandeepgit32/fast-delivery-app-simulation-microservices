@@ -239,7 +239,9 @@ async def get_delivery(delivery_id: int):
 @app.post("/assign_delivery")
 async def assign_delivery(request: AssignDeliveryRequest):
     """Queue the delivery simulation task"""
-    task = celery.send_task("simulate_delivery", args=[request.order_id])
+    task = celery.send_task(
+        "simulate_delivery", args=[request.order_id, request.customer_distance]
+    )
     return {"order_id": request.order_id, "task_id": task.id}
 
 
@@ -252,6 +254,13 @@ async def update_delivery_person(person_id: int, person_status: str):
         )
     update_delivery_person_status(person_id, person_status)
     return {"message": "Delivery person status updated"}
+
+
+@app.post("/create_delivery_record")
+async def create_delivery_record(order_id: str, delivery_person_id: int):
+    """Create a new delivery record"""
+    delivery_id = create_delivery_record(order_id, delivery_person_id)
+    return {"message": "Delivery created", "delivery_id": delivery_id}
 
 
 if __name__ == "__main__":

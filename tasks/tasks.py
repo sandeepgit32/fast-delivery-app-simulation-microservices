@@ -47,6 +47,7 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
                 },
             )
             return
+
         elif response.json()["status"] == False:
             logger.warning(
                 f"Stock not available for order {order_id}: {response.json()['message']}"
@@ -56,6 +57,7 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
                 json={"order_id": order_id, "message": response.json()["message"]},
             )
             return
+
         elif response.json()["status"] == True:
             logger.info(f"Stock validated successfully for order {order_id}")
             # Update message "Order taken" in ORDER_SERVICE
@@ -76,6 +78,7 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
             )
             logger.info(f"Order {order_id} processed successfully")
             return
+
         else:
             logger.error(f"Unexpected response for order {order_id}")
             response = requests.post(
@@ -86,6 +89,7 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
                 },
             )
             return
+
     except Exception as e:
         logger.error(f"Error processing order {order_id}: {str(e)}")
         raise
@@ -134,9 +138,15 @@ def simulate_delivery(order_id: str, customer_distance: float):
         delivery_person = random.choice(idle_delivery_persons)
         delivery_person_id = delivery_person["id"]
 
+        # Update the update_delivery_person_status status to "en_route"
+        requests.post(
+            f"{DELIVERY_SERVICE_URL}/update_delivery_person_status/{delivery_person_id}",
+            json={"person_status": "en_route"},
+        )
+
         # Create a record in deliveries table with delivery_id, order_id, and delivery_person_id
         response = requests.post(
-            f"{DELIVERY_SERVICE_URL}/assign_delivery",
+            f"{DELIVERY_SERVICE_URL}/create_delivery_record",
             json={"order_id": order_id, "delivery_person_id": delivery_person_id},
         )
 
@@ -153,13 +163,6 @@ def simulate_delivery(order_id: str, customer_distance: float):
             },
         )
 
-        # Update the update_delivery_person_status status to "en_route" after 20s-40s to simulate packing of order
-        time.sleep(random.randint(20, 40) + customer_distance)
-        requests.post(
-            f"{DELIVERY_SERVICE_URL}/update_delivery_person_status/{delivery_person_id}",
-            json={"person_status": "en_route"},
-        )
-
         # Update the /update_msg for ORDER_SERVICE to update message "Delivery en route"
         requests.post(
             f"{ORDER_SERVICE_URL}/update_msg",
@@ -169,8 +172,8 @@ def simulate_delivery(order_id: str, customer_distance: float):
             },
         )
 
-        # Simulate delivery time
-        time.sleep(random.randint(60, 180))
+        # Simulate the delivery time of order based on customer distance
+        time.sleep(random.randint(20, 40) + 20 * customer_distance)
 
         # Call the /close_order for ORDER_SERVICE to close the order
         requests.post(f"{ORDER_SERVICE_URL}/close_order", json={"order_id": order_id})
@@ -182,6 +185,7 @@ def simulate_delivery(order_id: str, customer_distance: float):
         )
 
         logger.info(f"Delivery completed for order {order_id}")
+
     except Exception as e:
         logger.error(f"Error in delivery simulation for order {order_id}: {str(e)}")
         raise
