@@ -27,10 +27,6 @@ class OrderItems(BaseModel):
     order_items: List[OrderItem]
 
 
-class StockResponse(BaseModel):
-    message: str
-
-
 @contextmanager
 def get_db_connection():
     """Context manager for database connections."""
@@ -122,7 +118,7 @@ def validate_stock(items):
                 )
 
 
-@app.post("/add_stock", response_model=StockResponse)
+@app.post("/add_stock", response_model=dict)
 async def add_stock(items: OrderItems):
     """
     Add stock quantities for multiple items.
@@ -133,26 +129,26 @@ async def add_stock(items: OrderItems):
     return {"message": "Stock updated"}
 
 
-@app.post("/remove_stock", response_model=StockResponse)
-async def remove_stock(items: OrderItems):
+@app.post("/remove_stock", response_model=dict)
+async def remove_stock(request: OrderItems):
     """
     Remove stock quantities for multiple items.
     """
-    validation_status, message = validate_stock(items.order_items)
+    validation_status, message = validate_stock(request.order_items)
     if not validation_status:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-    result, status_code = batch_update_stock(items.order_items, operation="remove")
+    result, status_code = batch_update_stock(request.order_items, operation="remove")
     if status_code != 200:
         raise HTTPException(status_code=status_code, detail=result["error"])
     return {"message": "Stock updated"}
 
 
 @app.post("/validate_stock", response_model=dict)
-async def validate_stock_operation(items: OrderItems):
+async def validate_stock_operation(request: OrderItems):
     """
     Validate if stock operations are possible for multiple items.
     """
-    validation_status, message = validate_stock(items.order_items)
+    validation_status, message = validate_stock(request.order_items)
     return {"status": validation_status, "message": message}
 
 

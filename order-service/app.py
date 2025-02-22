@@ -33,14 +33,9 @@ class CreateOrderRequest(BaseModel):
     items: List[OrderItem]
 
 
-class OrderResponse(BaseModel):
-    id: str
-    order_time: str
-    customer_name: str
-    customer_distance: float
-    order_status: str
-    items: List[OrderItem]
-    message: Optional[str] = None
+class updateOrderRequest(BaseModel):
+    order_id: str
+    message: Optional[str]
 
 
 @contextmanager
@@ -68,14 +63,15 @@ def update_order_with_items(order, items):
                 # Insert order
                 cursor.execute(
                     """INSERT INTO orders 
-                    (id, order_time, customer_name, customer_distance, order_status) 
-                    VALUES (%s, %s, %s, %s, %s)""",
+                    (id, order_time, customer_name, customer_distance, order_status, response_msg) 
+                    VALUES (%s, %s, %s, %s, %s, %s)""",
                     (
                         order["id"],
                         order["order_time"],
                         order["customer_name"],
                         order["customer_distance"],
                         order["order_status"],
+                        "Order created",
                     ),
                 )
 
@@ -291,9 +287,7 @@ def get_order_details(order_id):
                 )
 
 
-@app.post(
-    "/create_order", response_model=OrderResponse, status_code=status.HTTP_201_CREATED
-)
+@app.post("/create_order", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_order(order_request: CreateOrderRequest):
     """Create a new order and assign delivery."""
     if not order_request.items:
@@ -319,32 +313,35 @@ async def create_order(order_request: CreateOrderRequest):
     }
     update_order_with_items(order, order_request.items)
 
+    # Convert Pydantic models to dictionaries for Celery serialization
+    serializable_items = [item.dict() for item in order_request.items]
+
     # Queue the process_order task
     task = celery.send_task(
         "process_order",
-        args=[order["id"], order["customer_distance"], order["order_items"]],
+        args=[order["id"], order["customer_distance"], serializable_items],
     )
     return {"order_id": order["id"], "task_id": task.id}
 
 
 @app.post("/close_order/{order_id}", response_model=dict)
-async def close_order(order_id: str):
+async def close_order(request: updateOrderRequest):
     """Mark an order as closed."""
-    update_status_of_an_order(order_id, "completed", "Order delivered")
+    update_status_of_an_order(request.order_id, "completed", "Order delivered")
     return {"order_status": "Order delivered"}
 
 
 @app.post("/cancel_order/{order_id}", response_model=dict)
-async def cancel_order(order_id: str, message: str):
+async def cancel_order(request: updateOrderRequest):
     """Cancel an order."""
-    update_status_of_an_order(order_id, "cancelled", message)
+    update_status_of_an_order(request.order_id, "cancelled", request.message)
     return {"order_status": "Order cancelled"}
 
 
 @app.post("/update_msg/{order_id}", response_model=dict)
-async def update_msg(order_id: str, message: str):
+async def update_msg(request: updateOrderRequest):
     """Update message for an order."""
-    update_msg_of_an_order(order_id, message)
+    update_msg_of_an_order(request.order_id, request.message)
     return {"order_status": "Order message updated"}
 
 

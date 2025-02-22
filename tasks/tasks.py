@@ -29,10 +29,9 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
     logger.info(f"Processing order {order_id}")
     try:
         # Validate stock
-        logger.info(f"Validating stock for order {order_id}")
         response = requests.post(
             f"{STOCK_SERVICE_URL}/validate_stock",
-            json={"items": order_items},
+            json={"order_items": order_items},
         )
 
         if response.status_code != 200:
@@ -74,7 +73,7 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
             )
             requests.post(
                 f"{STOCK_SERVICE_URL}/remove_stock",
-                json={"items": order_items},
+                json={"order_items": order_items},
             )
             logger.info(f"Order {order_id} processed successfully")
             return
