@@ -27,9 +27,8 @@ services:
       - order-service
       - delivery-service
       - stock-service
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - ./tasks/.env
     networks:
       - food_delivery_network
 
@@ -41,6 +40,8 @@ services:
       - ./order-service:/app
     depends_on:
       - db
+    env_file:
+      - ./order-service/.env
     networks:
       - food_delivery_network
 
@@ -53,6 +54,8 @@ services:
     depends_on:
       - db
       - redis
+    env_file:
+      - ./delivery-service/.env
     networks:
       - food_delivery_network
 
@@ -64,6 +67,8 @@ services:
       - ./stock-service:/app
     depends_on:
       - db
+    env_file:
+      - ./stock-service/.env
     networks:
       - food_delivery_network
 

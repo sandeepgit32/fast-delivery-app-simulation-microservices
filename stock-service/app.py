@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from typing import List
 
@@ -10,10 +11,10 @@ app = FastAPI(title="Stock Service API")
 
 # MySQL configuration
 db_config = {
-    "user": "root",
-    "password": "password",
-    "host": "db",
-    "database": "food_delivery",
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "database": os.getenv("DB_NAME"),
 }
 
 

@@ -1,3 +1,4 @@
+import os
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
@@ -10,14 +11,14 @@ from mysql.connector.errors import Error as MySQLError
 from pydantic import BaseModel
 
 app = FastAPI(title="Order Service API")
-celery = Celery("tasks", broker="redis://redis:6379/0")
+celery = Celery(os.getenv("TASK_QUEUE_NAME"), broker=os.getenv("TASK_QUEUE_BROKER_URL"))
 
 # MySQL configuration
 db_config = {
-    "user": "root",
-    "password": "password",
-    "host": "db",
-    "database": "food_delivery",
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "database": os.getenv("DB_NAME"),
 }
 
 

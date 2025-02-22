@@ -14,14 +14,14 @@ logger = logging.getLogger(__name__)
 
 # Initialize Celery
 celery = Celery(
-    "tasks",
-    broker=os.getenv("CELERY_BROKER_URL"),
-    backend=os.getenv("CELERY_RESULT_BACKEND"),
+    os.getenv("TASK_QUEUE_NAME"),
+    broker=os.getenv("TASK_QUEUE_BROKER_URL"),
+    backend=os.getenv("TASK_QUEUE_RESULT_BACKEND_URL"),
 )
 
-ORDER_SERVICE_URL = "http://order-service:5001"
-DELIVERY_SERVICE_URL = "http://delivery-service:5002"
-STOCK_SERVICE_URL = "http://stock-service:5003"
+ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL")
+DELIVERY_SERVICE_URL = os.getenv("DELIVERY_SERVICE_URL")
+STOCK_SERVICE_URL = os.getenv("STOCK_SERVICE_URL")
 
 
 @celery.task(name="process_order")
