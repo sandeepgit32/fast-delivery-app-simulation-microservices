@@ -100,7 +100,7 @@ def simulate_delivery(order_id: str, customer_distance: float):
     try:
         # Find a list of delivery persons who are idle
         logger.info("Searching for idle delivery persons")
-        response = requests.get(f"{DELIVERY_SERVICE_URL}/idle")
+        response = requests.get(f"{DELIVERY_SERVICE_URL}/delivery_persons/idle")
         idle_delivery_persons = response.json()
 
         # If no delivery persion is idle, then check in a gap of 30 seconds repeatedly to find any idle delivery person
@@ -139,8 +139,8 @@ def simulate_delivery(order_id: str, customer_distance: float):
 
         # Update the update_delivery_person_status status to "en_route"
         requests.post(
-            f"{DELIVERY_SERVICE_URL}/update_delivery_person_status/{delivery_person_id}",
-            json={"person_status": "en_route"},
+            f"{DELIVERY_SERVICE_URL}/update_delivery_person_status",
+            json={"person_id": delivery_person_id, "person_status": "en_route"},
         )
 
         # Create a record in deliveries table with delivery_id, order_id, and delivery_person_id

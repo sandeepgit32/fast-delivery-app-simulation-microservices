@@ -33,7 +33,7 @@ class CreateOrderRequest(BaseModel):
     items: List[OrderItem]
 
 
-class updateOrderRequest(BaseModel):
+class UpdateOrderRequest(BaseModel):
     order_id: str
     message: Optional[str]
 
@@ -324,22 +324,22 @@ async def create_order(order_request: CreateOrderRequest):
     return {"order_id": order["id"], "task_id": task.id}
 
 
-@app.post("/close_order/{order_id}", response_model=dict)
-async def close_order(request: updateOrderRequest):
+@app.post("/close_order", response_model=dict)
+async def close_order(request: UpdateOrderRequest):
     """Mark an order as closed."""
     update_status_of_an_order(request.order_id, "completed", "Order delivered")
     return {"order_status": "Order delivered"}
 
 
-@app.post("/cancel_order/{order_id}", response_model=dict)
-async def cancel_order(request: updateOrderRequest):
+@app.post("/cancel_order", response_model=dict)
+async def cancel_order(request: UpdateOrderRequest):
     """Cancel an order."""
     update_status_of_an_order(request.order_id, "cancelled", request.message)
     return {"order_status": "Order cancelled"}
 
 
-@app.post("/update_msg/{order_id}", response_model=dict)
-async def update_msg(request: updateOrderRequest):
+@app.post("/update_msg", response_model=dict)
+async def update_msg(request: UpdateOrderRequest):
     """Update message for an order."""
     update_msg_of_an_order(request.order_id, request.message)
     return {"order_status": "Order message updated"}

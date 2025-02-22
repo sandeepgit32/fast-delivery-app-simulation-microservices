@@ -38,6 +38,16 @@ class AssignDeliveryRequest(BaseModel):
     customer_distance: float
 
 
+class UpdateDeliveryPersonStatusRequest(BaseModel):
+    person_id: int
+    person_status: str
+
+
+class CreateDeliveryRecordRequest(BaseModel):
+    order_id: str
+    delivery_person_id: int
+
+
 @contextmanager
 def get_db_connection():
     """Context manager for database connections."""
@@ -171,7 +181,7 @@ def fetch_delivery(delivery_id):
                 )
 
 
-def create_delivery_record(order_id, delivery_person_id):
+def create_delivery_record_in_db(order_id, delivery_person_id):
     """
     Create a new delivery record in the database
     Args:
@@ -246,21 +256,23 @@ async def assign_delivery(request: AssignDeliveryRequest):
     return {"order_id": request.order_id, "task_id": task.id}
 
 
-@app.post("/update_delivery_person_status/{person_id}")
-async def update_delivery_person(person_id: int, person_status: str):
+@app.post("/update_delivery_person_status", response_model=dict)
+async def update_delivery_person(request: UpdateDeliveryPersonStatusRequest):
     """Update the status of a delivery person"""
-    if person_status not in ["idle", "en_route"]:
+    if request.person_status not in ["idle", "en_route"]:
         raise HTTPException(
             status_code=400, detail="Invalid status. Must be 'idle' or 'en_route'"
         )
-    update_delivery_person_status(person_id, person_status)
+    update_delivery_person_status(request.person_id, request.person_status)
     return {"message": "Delivery person status updated"}
 
 
-@app.post("/create_delivery_record")
-async def create_delivery_record(order_id: str, delivery_person_id: int):
+@app.post("/create_delivery_record", response_model=dict)
+async def create_delivery_record(request: CreateDeliveryRecordRequest):
     """Create a new delivery record"""
-    delivery_id = create_delivery_record(order_id, delivery_person_id)
+    delivery_id = create_delivery_record_in_db(
+        request.order_id, request.delivery_person_id
+    )
     return {"message": "Delivery created", "delivery_id": delivery_id}
 
 
