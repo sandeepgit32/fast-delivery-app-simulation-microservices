@@ -5,6 +5,12 @@ import time
 
 import requests
 from celery import Celery
+from tenacity import (
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 
 # Configure logging
 logging.basicConfig(
@@ -24,12 +30,44 @@ DELIVERY_SERVICE_URL = os.getenv("DELIVERY_SERVICE_URL")
 STOCK_SERVICE_URL = os.getenv("STOCK_SERVICE_URL")
 
 
+# Retry decorator function
+def create_retry_decorator(max_attempts=3):
+    return retry(
+        stop=stop_after_attempt(max_attempts),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((requests.exceptions.RequestException)),
+        before_sleep=lambda retry_state: logger.warning(
+            f"Request failed, attempting retry {retry_state.attempt_number} of {max_attempts}"
+        ),
+    )
+
+
+# Create a reusable retry decorator
+retry_request = create_retry_decorator()
+
+
+@retry_request
+def make_request(method, url, **kwargs):
+    if method == "GET":
+        response = requests.get(url)
+    elif method == "POST":
+        response = requests.post(url, **kwargs)
+    elif method == "PUT":
+        response = requests.put(url, **kwargs)
+    elif method == "DELETE":
+        response = requests.delete(url, **kwargs)
+    # Raise an exception for 4xx and 5xx status codes
+    response.raise_for_status()
+    return response
+
+
 @celery.task(name="process_order")
 def process_order(order_id: str, customer_distance: float, order_items: list):
     logger.info(f"Processing order {order_id}")
     try:
         # Validate stock
-        response = requests.post(
+        response = make_request(
+            "POST",
             f"{STOCK_SERVICE_URL}/validate_stock",
             json={"order_items": order_items},
         )
@@ -38,7 +76,8 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
             logger.error(
                 f"Stock service error for order {order_id}: {response.status_code}"
             )
-            response = requests.post(
+            response = make_request(
+                "POST",
                 f"{ORDER_SERVICE_URL}/cancel_order",
                 json={
                     "order_id": order_id,
@@ -51,7 +90,8 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
             logger.warning(
                 f"Stock not available for order {order_id}: {response.json()['message']}"
             )
-            response = requests.post(
+            response = make_request(
+                "POST",
                 f"{ORDER_SERVICE_URL}/cancel_order",
                 json={"order_id": order_id, "message": response.json()["message"]},
             )
@@ -60,18 +100,21 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
         elif response.json()["status"] == True:
             logger.info(f"Stock validated successfully for order {order_id}")
             # Update message "Order taken" in ORDER_SERVICE
-            requests.post(
+            make_request(
+                "POST",
                 f"{ORDER_SERVICE_URL}/update_msg",
                 json={
                     "order_id": order_id,
                     "message": "Order taken",
                 },
             )
-            requests.post(
+            make_request(
+                "POST",
                 f"{DELIVERY_SERVICE_URL}/assign_delivery",
                 json={"order_id": order_id, "customer_distance": customer_distance},
             )
-            requests.post(
+            make_request(
+                "POST",
                 f"{STOCK_SERVICE_URL}/remove_stock",
                 json={"order_items": order_items},
             )
@@ -80,7 +123,8 @@ def process_order(order_id: str, customer_distance: float, order_items: list):
 
         else:
             logger.error(f"Unexpected response for order {order_id}")
-            response = requests.post(
+            response = make_request(
+                "POST",
                 f"{ORDER_SERVICE_URL}/cancel_order",
                 json={
                     "order_id": order_id,
@@ -100,17 +144,18 @@ def simulate_delivery(order_id: str, customer_distance: float):
     try:
         # Find a list of delivery persons who are idle
         logger.info("Searching for idle delivery persons")
-        response = requests.get(f"{DELIVERY_SERVICE_URL}/delivery_persons/idle")
+        response = make_request("GET", f"{DELIVERY_SERVICE_URL}/delivery_persons/idle")
         idle_delivery_persons = response.json()
 
         # If no delivery persion is idle, then check in a gap of 30 seconds repeatedly to find any idle delivery person
         count = 0
         while (len(idle_delivery_persons) == 0) and (count < 120):
             time.sleep(30)
-            response = requests.get(f"{DELIVERY_SERVICE_URL}/idle")
+            response = make_request("GET", f"{DELIVERY_SERVICE_URL}/idle")
             idle_delivery_persons = response.json()
             # Update message "Finding delivery person ..." in ORDER_SERVICE
-            requests.post(
+            make_request(
+                "POST",
                 f"{ORDER_SERVICE_URL}/update_msg",
                 json={
                     "order_id": order_id,
@@ -124,7 +169,8 @@ def simulate_delivery(order_id: str, customer_distance: float):
             logger.error(
                 f"No delivery person available for order {order_id} after 1 hour"
             )
-            response = requests.post(
+            response = make_request(
+                "POST",
                 f"{ORDER_SERVICE_URL}/cancel_order",
                 json={
                     "order_id": order_id,
@@ -138,13 +184,15 @@ def simulate_delivery(order_id: str, customer_distance: float):
         delivery_person_id = delivery_person["id"]
 
         # Update the update_delivery_person_status status to "en_route"
-        requests.post(
+        make_request(
+            "POST",
             f"{DELIVERY_SERVICE_URL}/update_delivery_person_status",
             json={"person_id": delivery_person_id, "person_status": "en_route"},
         )
 
         # Create a record in deliveries table with delivery_id, order_id, and delivery_person_id
-        response = requests.post(
+        response = make_request(
+            "POST",
             f"{DELIVERY_SERVICE_URL}/create_delivery_record",
             json={"order_id": order_id, "delivery_person_id": delivery_person_id},
         )
@@ -154,7 +202,8 @@ def simulate_delivery(order_id: str, customer_distance: float):
         )
 
         # Once delivery person is assigned, update the message to "Delivery person assigned"
-        requests.post(
+        make_request(
+            "POST",
             f"{ORDER_SERVICE_URL}/update_msg",
             json={
                 "order_id": order_id,
@@ -163,7 +212,8 @@ def simulate_delivery(order_id: str, customer_distance: float):
         )
 
         # Update the /update_msg for ORDER_SERVICE to update message "Delivery en route"
-        requests.post(
+        make_request(
+            "POST",
             f"{ORDER_SERVICE_URL}/update_msg",
             json={
                 "order_id": order_id,
@@ -177,7 +227,8 @@ def simulate_delivery(order_id: str, customer_distance: float):
         time.sleep(delivery_time)
 
         # Call the /close_order for ORDER_SERVICE to close the order
-        requests.post(
+        make_request(
+            "POST",
             f"{ORDER_SERVICE_URL}/close_order",
             json={
                 "order_id": order_id,
@@ -186,7 +237,8 @@ def simulate_delivery(order_id: str, customer_distance: float):
         )
 
         # Update the update_delivery_person_status status to "idle"
-        requests.post(
+        make_request(
+            "POST",
             f"{DELIVERY_SERVICE_URL}/update_delivery_person_status",
             json={"person_id": delivery_person_id, "person_status": "idle"},
         )
