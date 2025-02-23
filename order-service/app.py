@@ -35,7 +35,7 @@ class CreateOrderRequest(BaseModel):
 
 class UpdateOrderRequest(BaseModel):
     order_id: str
-    message: Optional[str]
+    message: str
 
 
 @contextmanager
@@ -327,7 +327,7 @@ async def create_order(order_request: CreateOrderRequest):
 @app.post("/close_order", response_model=dict)
 async def close_order(request: UpdateOrderRequest):
     """Mark an order as closed."""
-    update_status_of_an_order(request.order_id, "completed", "Order delivered")
+    update_status_of_an_order(request.order_id, "completed", request.message)
     return {"order_status": "Order delivered"}
 
 

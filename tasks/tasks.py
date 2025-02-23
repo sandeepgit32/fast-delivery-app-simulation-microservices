@@ -172,15 +172,23 @@ def simulate_delivery(order_id: str, customer_distance: float):
         )
 
         # Simulate the delivery time of order based on customer distance
-        time.sleep(random.randint(20, 40) + 20 * customer_distance)
+        delivery_time = random.randint(20, 40) + 1 * customer_distance
+        logger.info(f"Delivery time for order {order_id}: {delivery_time} seconds")
+        time.sleep(delivery_time)
 
         # Call the /close_order for ORDER_SERVICE to close the order
-        requests.post(f"{ORDER_SERVICE_URL}/close_order", json={"order_id": order_id})
+        requests.post(
+            f"{ORDER_SERVICE_URL}/close_order",
+            json={
+                "order_id": order_id,
+                "message": "Order delivered",
+            },
+        )
 
         # Update the update_delivery_person_status status to "idle"
         requests.post(
-            f"{DELIVERY_SERVICE_URL}/update_delivery_person_status/{delivery_person_id}",
-            json={"person_status": "idle"},
+            f"{DELIVERY_SERVICE_URL}/update_delivery_person_status",
+            json={"person_id": delivery_person_id, "person_status": "idle"},
         )
 
         logger.info(f"Delivery completed for order {order_id}")
