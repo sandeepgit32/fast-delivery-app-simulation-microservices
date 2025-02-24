@@ -2,7 +2,7 @@ import os
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 import mysql.connector
 from celery import Celery

@@ -222,7 +222,7 @@ def simulate_delivery(order_id: str, customer_distance: float):
         )
 
         # Simulate the delivery time of order based on customer distance
-        delivery_time = random.randint(20, 40) + 1 * customer_distance
+        delivery_time = random.randint(5, 10) + 5 * customer_distance
         logger.info(f"Delivery time for order {order_id}: {delivery_time} seconds")
         time.sleep(delivery_time)
 

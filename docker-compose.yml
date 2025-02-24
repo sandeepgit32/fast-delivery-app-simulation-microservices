@@ -72,6 +72,17 @@ services:
     networks:
       - food_delivery_network
 
+  order-generation-simulation-service:
+    build: ./order-generation-simulation-service
+    volumes:
+      - ./order-generation-simulation-service:/app
+    depends_on:
+      - order-service
+    env_file:
+      - ./order-generation-simulation-service/.env
+    networks:
+      - food_delivery_network
+
   # frontend-service:
   #   build: ./frontend-service
   #   ports:
