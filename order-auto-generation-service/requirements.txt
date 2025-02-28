@@ -1,0 +1,6 @@
+requests
+faker
+fastapi
+uvicorn[standard]
+pydantic
+tenacity
