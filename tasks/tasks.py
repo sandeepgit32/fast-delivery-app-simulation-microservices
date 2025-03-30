@@ -5,6 +5,7 @@ import time
 
 import requests
 from celery import Celery
+from requests.adapters import HTTPAdapter
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -30,6 +31,18 @@ DELIVERY_SERVICE_URL = os.getenv("DELIVERY_SERVICE_URL")
 STOCK_SERVICE_URL = os.getenv("STOCK_SERVICE_URL")
 
 
+# Create a session with connection pooling
+session = requests.Session()
+adapter = requests.adapters.HTTPAdapter(
+    pool_connections=100,  # Number of connection objects to keep in pool
+    pool_maxsize=100,  # Maximum number of connections to keep in pool
+    max_retries=0,  # Let tenacity handle retries
+    pool_block=False,  # Don't block when pool is full (raise error)
+)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+
+
 # Retry decorator function
 def create_retry_decorator(max_attempts=3):
     return retry(
@@ -48,6 +61,10 @@ retry_request = create_retry_decorator()
 
 @retry_request
 def make_request(method, url, **kwargs):
+    # Add timeout if not provided
+    if "timeout" not in kwargs:
+        kwargs["timeout"] = (5, 30)  # (connect timeout, read timeout)
+
     if method == "GET":
         response = requests.get(url)
     elif method == "POST":
