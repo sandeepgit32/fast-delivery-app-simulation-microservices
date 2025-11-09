@@ -51,7 +51,7 @@ export default {
     return api.get(`/delivery_persons/${personId}`)
   },
   updateDeliveryPersonStatus(personId, status) {
-    return api.post(`/update_delivery_person_status/${personId}`, { status })
+    return api.post(`/update_delivery_person_status/${personId}`, { person_status: status })
   },
 
   // Deliveries

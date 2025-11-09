@@ -54,33 +54,33 @@
                 No personnel found
               </td>
             </tr>
-            <tr v-for="person in filteredPersonnel" :key="person.person_id">
-              <td><strong>#{{ person.person_id }}</strong></td>
-              <td>{{ person.person_name }}</td>
-              <td>{{ person.person_phone }}</td>
+            <tr v-for="person in filteredPersonnel" :key="person.id">
+              <td><strong>#{{ person.id }}</strong></td>
+              <td>{{ person.name }}</td>
+              <td>{{ person.phone_number }}</td>
               <td>
                 <span 
                   class="badge" 
                   :class="{
-                    'badge-success': person.status === 'idle',
-                    'badge-warning': person.status === 'en_route'
+                    'badge-success': person.person_status === 'idle',
+                    'badge-warning': person.person_status === 'en_route'
                   }"
                 >
-                  {{ person.status }}
+                  {{ person.person_status }}
                 </span>
               </td>
               <td>
                 <div class="action-buttons">
                   <button 
-                    @click="viewPersonDetails(person.person_id)" 
+                    @click="viewPersonDetails(person.id)" 
                     class="btn btn-sm btn-primary"
                     title="View Details"
                   >
                     👁️ View
                   </button>
                   <button 
-                    v-if="person.status === 'en_route'"
-                    @click="updateStatus(person.person_id, 'idle')" 
+                    v-if="person.person_status === 'en_route'"
+                    @click="updateStatus(person.id, 'idle')" 
                     class="btn btn-sm btn-success"
                     title="Mark as Idle"
                   >
@@ -98,30 +98,30 @@
     <div v-if="showDetailsModal" class="modal-overlay" @click.self="showDetailsModal = false">
       <div class="modal">
         <div class="modal-header">
-          <h3>Personnel Details - {{ selectedPerson?.person_name }}</h3>
+          <h3>Personnel Details - {{ selectedPerson?.name }}</h3>
           <button @click="showDetailsModal = false" class="close-btn">✕</button>
         </div>
         <div class="modal-body" v-if="selectedPerson">
           <div class="detail-grid">
             <div class="detail-item">
-              <strong>Person ID:</strong> #{{ selectedPerson.person_id }}
+              <strong>Person ID:</strong> #{{ selectedPerson.id }}
             </div>
             <div class="detail-item">
-              <strong>Name:</strong> {{ selectedPerson.person_name }}
+              <strong>Name:</strong> {{ selectedPerson.name }}
             </div>
             <div class="detail-item">
-              <strong>Phone:</strong> {{ selectedPerson.person_phone }}
+              <strong>Phone:</strong> {{ selectedPerson.phone_number }}
             </div>
             <div class="detail-item">
               <strong>Status:</strong>
               <span 
                 class="badge" 
                 :class="{
-                  'badge-success': selectedPerson.status === 'idle',
-                  'badge-warning': selectedPerson.status === 'en_route'
+                  'badge-success': selectedPerson.person_status === 'idle',
+                  'badge-warning': selectedPerson.person_status === 'en_route'
                 }"
               >
-                {{ selectedPerson.status }}
+                {{ selectedPerson.person_status }}
               </span>
             </div>
           </div>
@@ -162,9 +162,14 @@ export default {
   },
   computed: {
     filteredPersonnel() {
-      if (this.currentFilter === 'idle') return this.idlePersonnel
-      if (this.currentFilter === 'en_route') return this.enRoutePersonnel
-      return this.allPersonnel
+      let result
+      if (this.currentFilter === 'idle') result = this.idlePersonnel
+      else if (this.currentFilter === 'en_route') result = this.enRoutePersonnel
+      else result = this.allPersonnel
+      
+      console.log('Filtered Personnel:', result)
+      console.log('Current Filter:', this.currentFilter)
+      return result
     }
   },
   mounted() {
@@ -182,9 +187,18 @@ export default {
           api.getEnRoutePersons()
         ])
 
+        console.log('API Response - All:', all)
+        console.log('API Response - All Data:', all.data)
+        console.log('API Response - Idle:', idle.data)
+        console.log('API Response - En Route:', enRoute.data)
+
         this.allPersonnel = all.data
         this.idlePersonnel = idle.data
         this.enRoutePersonnel = enRoute.data
+
+        console.log('Component State - All Personnel:', this.allPersonnel)
+        console.log('Component State - Idle Personnel:', this.idlePersonnel)
+        console.log('Component State - En Route Personnel:', this.enRoutePersonnel)
       } catch (err) {
         this.error = 'Failed to load personnel: ' + (err.response?.data?.error || err.message)
       } finally {

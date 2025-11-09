@@ -134,9 +134,12 @@ def assign_delivery():
 
 @app.route("/update_delivery_person_status/<person_id>", methods=["POST"])
 def update_delivery_person_status(person_id):
+    # Transform the request to include person_id in the body
+    request_data = request.json if request.json else {}
+    request_data['person_id'] = int(person_id)
     response = requests.post(
-        f"{DELIVERY_SERVICE_URL}/update_delivery_person_status/{person_id}",
-        json=request.json,
+        f"{DELIVERY_SERVICE_URL}/update_delivery_person_status",
+        json=request_data,
     )
     return jsonify(response.json()), response.status_code
 

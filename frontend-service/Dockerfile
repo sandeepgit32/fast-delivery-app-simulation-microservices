@@ -11,6 +11,10 @@ RUN npm install
 # Copy project files
 COPY . .
 
+# Set build argument and environment variable for Vue
+ARG VUE_APP_API_URL=http://localhost:5000
+ENV VUE_APP_API_URL=$VUE_APP_API_URL
+
 # Build the app
 RUN npm run build
 

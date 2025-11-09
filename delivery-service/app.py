@@ -226,7 +226,7 @@ async def get_idle_delivery_personnel_list():
     return get_delivery_personnel(person_status="idle")
 
 
-@app.get("/delivery_person/{person_id}", response_model=DeliveryPerson)
+@app.get("/delivery_persons/{person_id}", response_model=DeliveryPerson)
 async def get_delivery_person(person_id: int):
     """Get details of a specific delivery person"""
     return fetch_delivery_person(person_id)
@@ -238,7 +238,7 @@ async def get_all_deliveries():
     return get_list_of_deliveries()
 
 
-@app.get("/delivery/{delivery_id}", response_model=Delivery)
+@app.get("/deliveries/{delivery_id}", response_model=Delivery)
 async def get_delivery(delivery_id: int):
     """Get details of a specific delivery"""
     delivery = fetch_delivery(delivery_id)
