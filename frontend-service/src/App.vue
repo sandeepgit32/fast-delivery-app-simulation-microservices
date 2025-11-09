@@ -1,111 +1,132 @@
 <template>
-  <div class="app-container">
-    <nav class="navbar navbar-expand-lg navbar-dark">
-      <div class="container-fluid px-4">
-        <span class="navbar-brand">
-          <i class="bi bi-box-seam"></i>
-          Food Delivery System
-        </span>
-        <div class="navbar-nav">
-          <router-link class="nav-link" to="/orders">
-            <i class="bi bi-receipt"></i>
-            Orders
-          </router-link>
-          <router-link class="nav-link" to="/delivery-persons">
-            <i class="bi bi-person-badge"></i>
-            Delivery Persons
-          </router-link>
-          <router-link class="nav-link" to="/stock">
-            <i class="bi bi-box"></i>
-            Stock
-          </router-link>
+  <div id="app">
+    <nav class="navbar">
+      <div class="nav-container">
+        <div class="nav-brand">
+          <h1>🚀 Food Delivery Dashboard</h1>
         </div>
+        <ul class="nav-menu">
+          <li>
+            <router-link to="/" :class="{ active: $route.path === '/' }">
+              📊 Dashboard
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/orders" :class="{ active: $route.path === '/orders' }">
+              📦 Orders
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/deliveries" :class="{ active: $route.path === '/deliveries' }">
+              🚚 Deliveries
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/personnel" :class="{ active: $route.path === '/personnel' }">
+              👥 Personnel
+            </router-link>
+          </li>
+          <li>
+            <router-link to="/stock" :class="{ active: $route.path === '/stock' }">
+              📦 Stock
+            </router-link>
+          </li>
+        </ul>
       </div>
     </nav>
     
-    <div class="container-fluid px-4 py-4">
-      <router-view></router-view>
-    </div>
+    <main class="main-content">
+      <router-view/>
+    </main>
   </div>
 </template>
 
 <script>
-import PlotlyGraph from './components/PlotlyGraph.vue'
-import SimulationControls from './components/SimulationControls.vue'
-
 export default {
-  name: 'App',
-  components: {
-    PlotlyGraph,
-    SimulationControls
-  }
+  name: 'App'
 }
 </script>
 
-<style>
-@import url('https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css');
+<style scoped>
+.navbar {
+  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+}
 
-* {
+.nav-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-brand h1 {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  padding: 20px 0;
+}
+
+.nav-menu {
+  display: flex;
+  list-style: none;
+  gap: 8px;
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
 }
 
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-}
-
-.app-container {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  background-attachment: fixed;
-}
-
-.navbar {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-  padding: 1rem 0;
-}
-
-.navbar-brand {
-  color: #667eea !important;
-  font-weight: 700;
-  font-size: 1.5rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.navbar-brand i {
-  font-size: 1.8rem;
-}
-
-.nav-link {
-  color: #4a5568 !important;
-  font-weight: 500;
-  margin: 0 0.5rem;
-  padding: 0.5rem 1rem !important;
+.nav-menu li a {
+  color: rgba(255, 255, 255, 0.9);
+  text-decoration: none;
+  padding: 12px 20px;
   border-radius: 8px;
+  font-weight: 600;
   transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+  display: block;
+  font-size: 14px;
 }
 
-.nav-link:hover {
-  background-color: rgba(102, 126, 234, 0.1);
-  color: #667eea !important;
-  transform: translateY(-2px);
+.nav-menu li a:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: white;
 }
 
-.nav-link.router-link-active {
-  background-color: #667eea;
-  color: #fff !important;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+.nav-menu li a.active {
+  background-color: rgba(255, 255, 255, 0.2);
+  color: white;
 }
 
-.nav-link i {
-  font-size: 1.2rem;
+.main-content {
+  padding: 32px 0;
+  min-height: calc(100vh - 80px);
+}
+
+@media (max-width: 768px) {
+  .nav-container {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .nav-brand h1 {
+    padding: 16px 0 8px;
+    font-size: 1.25rem;
+  }
+
+  .nav-menu {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding-bottom: 12px;
+  }
+
+  .nav-menu li a {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
 }
 </style>

@@ -1,31 +1,14 @@
-const { defineConfig } = require('@vue/cli-service')
-
-module.exports = defineConfig({
-  transpileDependencies: true,
+module.exports = {
   devServer: {
+    host: '0.0.0.0',
     port: 8080,
-    proxy: {
-      '/api': {
-        target: process.env.VUE_APP_API_URL || 'http://api-gateway:5000',
-        changeOrigin: true,
-        pathRewrite: {
-          '^/api': ''
-        }
-      }
+    allowedHosts: 'all',
+    client: {
+      webSocketURL: 'auto://0.0.0.0:0/ws'
     }
   },
-  configureWebpack: {
-    performance: {
-      hints: false
-    }
-  },
-  css: {
-    loaderOptions: {
-      css: {
-        modules: {
-          auto: () => true
-        }
-      }
-    }
-  }
-})
+  publicPath: '/',
+  outputDir: 'dist',
+  assetsDir: 'static',
+  productionSourceMap: false
+}

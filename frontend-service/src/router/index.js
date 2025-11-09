@@ -1,28 +1,41 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import OrdersPage from '../pages/OrdersPage.vue'
-import DeliveryPersonsPage from '../pages/DeliveryPersonsPage.vue'
-import StockPage from '../pages/StockPage.vue'
+import Dashboard from '../components/Dashboard.vue'
+import Orders from '../components/Orders.vue'
+import Deliveries from '../components/Deliveries.vue'
+import DeliveryPersonnel from '../components/DeliveryPersonnel.vue'
+import Stock from '../components/Stock.vue'
 
 const routes = [
   {
     path: '/',
-    redirect: '/orders'
+    name: 'Dashboard',
+    component: Dashboard
   },
   {
     path: '/orders',
-    component: OrdersPage
+    name: 'Orders',
+    component: Orders
   },
   {
-    path: '/delivery-persons',
-    component: DeliveryPersonsPage
+    path: '/deliveries',
+    name: 'Deliveries',
+    component: Deliveries
+  },
+  {
+    path: '/personnel',
+    name: 'DeliveryPersonnel',
+    component: DeliveryPersonnel
   },
   {
     path: '/stock',
-    component: StockPage
+    name: 'Stock',
+    component: Stock
   }
 ]
 
-export default createRouter({
-  history: createWebHistory(),
+const router = createRouter({
+  history: createWebHistory(process.env.BASE_URL),
   routes
 })
+
+export default router
