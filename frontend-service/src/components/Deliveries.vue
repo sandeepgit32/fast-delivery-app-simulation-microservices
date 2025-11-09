@@ -23,41 +23,23 @@
             <tr>
               <th>Delivery ID</th>
               <th>Order ID</th>
-              <th>Person ID</th>
-              <th>Person Name</th>
-              <th>Status</th>
-              <th>Assigned At</th>
-              <th>Completed At</th>
+              <th>Delivery Person ID</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="deliveries.length === 0">
-              <td colspan="8" style="text-align: center; color: #94a3b8; padding: 40px;">
+              <td colspan="4" style="text-align: center; color: #94a3b8; padding: 40px;">
                 No deliveries found
               </td>
             </tr>
-            <tr v-for="delivery in deliveries" :key="delivery.delivery_id">
-              <td><strong>#{{ delivery.delivery_id }}</strong></td>
+            <tr v-for="delivery in deliveries" :key="delivery.id">
+              <td><strong>#{{ delivery.id }}</strong></td>
               <td>#{{ delivery.order_id }}</td>
-              <td>#{{ delivery.person_id }}</td>
-              <td>{{ delivery.person_name || 'N/A' }}</td>
-              <td>
-                <span 
-                  class="badge" 
-                  :class="{
-                    'badge-success': delivery.delivery_status === 'completed',
-                    'badge-warning': delivery.delivery_status === 'en_route'
-                  }"
-                >
-                  {{ delivery.delivery_status }}
-                </span>
-              </td>
-              <td>{{ formatDate(delivery.assigned_at) }}</td>
-              <td>{{ formatDate(delivery.completed_at) }}</td>
+              <td>#{{ delivery.delivery_person_id }}</td>
               <td>
                 <button 
-                  @click="viewDeliveryDetails(delivery.delivery_id)" 
+                  @click="viewDeliveryDetails(delivery.id)" 
                   class="btn btn-sm btn-primary"
                   title="View Details"
                 >
@@ -74,40 +56,19 @@
     <div v-if="showDetailsModal" class="modal-overlay" @click.self="showDetailsModal = false">
       <div class="modal">
         <div class="modal-header">
-          <h3>Delivery Details - #{{ selectedDelivery?.delivery_id }}</h3>
+          <h3>Delivery Details - #{{ selectedDelivery?.id }}</h3>
           <button @click="showDetailsModal = false" class="close-btn">✕</button>
         </div>
         <div class="modal-body" v-if="selectedDelivery">
           <div class="detail-grid">
             <div class="detail-item">
-              <strong>Delivery ID:</strong> #{{ selectedDelivery.delivery_id }}
+              <strong>Delivery ID:</strong> #{{ selectedDelivery.id }}
             </div>
             <div class="detail-item">
               <strong>Order ID:</strong> #{{ selectedDelivery.order_id }}
             </div>
             <div class="detail-item">
-              <strong>Person ID:</strong> #{{ selectedDelivery.person_id }}
-            </div>
-            <div class="detail-item">
-              <strong>Person Name:</strong> {{ selectedDelivery.person_name || 'N/A' }}
-            </div>
-            <div class="detail-item">
-              <strong>Status:</strong>
-              <span 
-                class="badge" 
-                :class="{
-                  'badge-success': selectedDelivery.delivery_status === 'completed',
-                  'badge-warning': selectedDelivery.delivery_status === 'en_route'
-                }"
-              >
-                {{ selectedDelivery.delivery_status }}
-              </span>
-            </div>
-            <div class="detail-item">
-              <strong>Assigned At:</strong> {{ formatDate(selectedDelivery.assigned_at) }}
-            </div>
-            <div class="detail-item">
-              <strong>Completed At:</strong> {{ formatDate(selectedDelivery.completed_at) }}
+              <strong>Delivery Person ID:</strong> #{{ selectedDelivery.delivery_person_id }}
             </div>
           </div>
         </div>

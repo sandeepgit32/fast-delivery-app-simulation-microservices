@@ -301,9 +301,10 @@ async def create_order(order_request: CreateOrderRequest):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Customer distance must be greater than 0",
         )
-
+    order_id = uuid.uuid4().hex
+    order_id = order_id[-15:]
     order = {
-        "id": uuid.uuid4().hex,
+        "id": order_id,
         "order_time": datetime.now().isoformat(),
         "customer_name": order_request.customer_name,
         "customer_distance": order_request.customer_distance,

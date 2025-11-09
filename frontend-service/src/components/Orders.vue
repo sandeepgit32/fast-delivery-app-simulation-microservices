@@ -48,11 +48,11 @@
             <tr>
               <th>Order ID</th>
               <th>Customer Name</th>
-              <th>Phone</th>
-              <th>Address</th>
+              <th>Distance (km)</th>
               <th>Status</th>
               <th>Message</th>
-              <th>Created At</th>
+              <th>Order Time</th>
+              <th>Delivery Time</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -62,46 +62,46 @@
                 No orders found
               </td>
             </tr>
-            <tr v-for="order in filteredOrders" :key="order.order_id">
-              <td><strong>#{{ order.order_id }}</strong></td>
+            <tr v-for="order in filteredOrders" :key="order.id">
+              <td><strong>#{{ order.id }}</strong></td>
               <td>{{ order.customer_name }}</td>
-              <td>{{ order.customer_phone }}</td>
-              <td>{{ order.customer_address }}</td>
+              <td>{{ order.customer_distance }}</td>
               <td>
                 <span 
                   class="badge" 
                   :class="{
-                    'badge-success': order.status === 'completed',
-                    'badge-warning': order.status === 'confirmed',
-                    'badge-info': order.status === 'pending',
-                    'badge-danger': order.status === 'cancelled'
+                    'badge-success': order.order_status === 'completed',
+                    'badge-warning': order.order_status === 'confirmed',
+                    'badge-info': order.order_status === 'pending',
+                    'badge-danger': order.order_status === 'cancelled'
                   }"
                 >
-                  {{ order.status }}
+                  {{ order.order_status }}
                 </span>
               </td>
-              <td>{{ order.message || '-' }}</td>
-              <td>{{ formatDate(order.created_at) }}</td>
+              <td>{{ order.response_msg || '-' }}</td>
+              <td>{{ formatDate(order.order_time) }}</td>
+              <td>{{ formatDate(order.delivered_at) }}</td>
               <td>
                 <div class="action-buttons">
                   <button 
-                    @click="viewOrderDetails(order.order_id)" 
+                    @click="viewOrderDetails(order.id)" 
                     class="btn btn-sm btn-primary"
                     title="View Details"
                   >
                     👁️
                   </button>
                   <button 
-                    v-if="order.status !== 'completed' && order.status !== 'cancelled'"
-                    @click="closeOrder(order.order_id)" 
+                    v-if="order.order_status !== 'completed' && order.order_status !== 'cancelled'"
+                    @click="closeOrder(order.id)" 
                     class="btn btn-sm btn-success"
                     title="Mark as Completed"
                   >
                     ✅
                   </button>
                   <button 
-                    v-if="order.status !== 'completed' && order.status !== 'cancelled'"
-                    @click="cancelOrder(order.order_id)" 
+                    v-if="order.order_status !== 'completed' && order.order_status !== 'cancelled'"
+                    @click="cancelOrder(order.id)" 
                     class="btn btn-sm btn-danger"
                     title="Cancel Order"
                   >
@@ -128,12 +128,8 @@
             <input v-model="newOrder.customer_name" type="text" placeholder="Enter customer name" />
           </div>
           <div class="form-group">
-            <label>Customer Phone *</label>
-            <input v-model="newOrder.customer_phone" type="text" placeholder="Enter phone number" />
-          </div>
-          <div class="form-group">
-            <label>Customer Address *</label>
-            <textarea v-model="newOrder.customer_address" placeholder="Enter delivery address" rows="3"></textarea>
+            <label>Customer Distance (km) *</label>
+            <input v-model.number="newOrder.customer_distance" type="number" step="0.1" min="0" placeholder="Enter distance in kilometers" />
           </div>
           <div class="form-group">
             <label>Items *</label>
@@ -168,7 +164,7 @@
     <div v-if="showDetailsModal" class="modal-overlay" @click.self="showDetailsModal = false">
       <div class="modal">
         <div class="modal-header">
-          <h3>Order Details - #{{ selectedOrder?.order_id }}</h3>
+          <h3>Order Details - #{{ selectedOrder?.id }}</h3>
           <button @click="showDetailsModal = false" class="close-btn">✕</button>
         </div>
         <div class="modal-body" v-if="selectedOrder">
@@ -177,30 +173,30 @@
               <strong>Customer:</strong> {{ selectedOrder.customer_name }}
             </div>
             <div class="detail-item">
-              <strong>Phone:</strong> {{ selectedOrder.customer_phone }}
-            </div>
-            <div class="detail-item">
-              <strong>Address:</strong> {{ selectedOrder.customer_address }}
+              <strong>Distance:</strong> {{ selectedOrder.customer_distance }} km
             </div>
             <div class="detail-item">
               <strong>Status:</strong> 
               <span 
                 class="badge" 
                 :class="{
-                  'badge-success': selectedOrder.status === 'completed',
-                  'badge-warning': selectedOrder.status === 'confirmed',
-                  'badge-info': selectedOrder.status === 'pending',
-                  'badge-danger': selectedOrder.status === 'cancelled'
+                  'badge-success': selectedOrder.order_status === 'completed',
+                  'badge-warning': selectedOrder.order_status === 'confirmed',
+                  'badge-info': selectedOrder.order_status === 'pending',
+                  'badge-danger': selectedOrder.order_status === 'cancelled'
                 }"
               >
-                {{ selectedOrder.status }}
+                {{ selectedOrder.order_status }}
               </span>
             </div>
             <div class="detail-item">
-              <strong>Created:</strong> {{ formatDate(selectedOrder.created_at) }}
+              <strong>Order Time:</strong> {{ formatDate(selectedOrder.order_time) }}
             </div>
             <div class="detail-item">
-              <strong>Message:</strong> {{ selectedOrder.message || 'N/A' }}
+              <strong>Delivery Time:</strong> {{ formatDate(selectedOrder.delivered_at) }}
+            </div>
+            <div class="detail-item">
+              <strong>Message:</strong> {{ selectedOrder.response_msg || 'N/A' }}
             </div>
           </div>
           <div v-if="selectedOrder.items && selectedOrder.items.length > 0">
@@ -267,8 +263,7 @@ export default {
       selectedOrder: null,
       newOrder: {
         customer_name: '',
-        customer_phone: '',
-        customer_address: '',
+        customer_distance: 0,
         items: [{ item_id: 1, quantity: 1 }]
       }
     }
@@ -314,8 +309,7 @@ export default {
         this.showCreateModal = false
         this.newOrder = {
           customer_name: '',
-          customer_phone: '',
-          customer_address: '',
+          customer_distance: 0,
           items: [{ item_id: 1, quantity: 1 }]
         }
         await this.fetchOrders()

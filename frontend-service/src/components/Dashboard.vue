@@ -1,7 +1,7 @@
 <template>
   <div class="container">
     <div class="page-header">
-      <h2>📊 Dashboard Overview</h2>
+      <h2>📊 Overview</h2>
       <button @click="refreshData" class="btn btn-primary">
         🔄 Refresh
       </button>

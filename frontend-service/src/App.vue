@@ -3,7 +3,7 @@
     <nav class="navbar">
       <div class="nav-container">
         <div class="nav-brand">
-          <h1>🚀 Food Delivery Dashboard</h1>
+          <h1>🚀 Fast Delivery App</h1>
         </div>
         <ul class="nav-menu">
           <li>
