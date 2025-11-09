@@ -2,39 +2,49 @@
 
 ## Overview
 
-This project simulates a food delivery system using a microservices architecture. The simulation includes a Google Map over any city, where orders arrive at random times from random locations with a specified arrival rate. The system features a central food kitchen, a finite number of delivery personnel, and limited stock for a list of food items. Orders are rejected when the food stock is depleted. The frontend displays a live map (dummy) that updates every 5 seconds, showing the locations of delivery personnel and the order pattern. Additionally, a graph shows order fulfillment statistics.
+This project simulates a fast delivery system that operates using a microservices architecture. The system autonomously generates orders at random intervals and assigns them to available delivery personnel. The entire process, from order creation to delivery completion, is handled in an asynchronous and event-driven manner. The complete workflow is described below:
+
+1. **Order Generation** - The system automatically generates new orders at random intervals. These orders consist of one or more items chosen from the available stock. Each order is recorded in the system.
+
+2. **Stock Validation and Order Confirmation** - Once an order is generated, the Stock Service verifies whether the requested items are available. If sufficient stock exists, the order is confirmed and the stock quantities are updated accordingly. If an item is out of stock or the order quantity is more than the available quantity, the order is cancelled.
+
+3. **Delivery Person Assignment** - After an order is confirmed, the system checks if any delivery personnel are idle. If an idle delivery person is available, the system assigns them to the order. The Delivery Service updates the delivery person's status to `en route` and creates an entry in the deliveries table, mapping the order to the assigned delivery person. If no delivery person is available, the order remains in a waiting state until someone becomes free.
+
+4. **Order Delivery Process** - The assigned delivery person picks up the order and begins the delivery process. Once the delivery is completed, the order status is updated to `completed`.
+    
+5. **Resetting the Delivery Person’s Status** - After completing the delivery, the delivery person's status is updated back to `idle`. They are now available to be assigned to a new order.
 
 ## Architecture
 
 ### Microservices
 
 1. **API Gateway**
-   - Central entry point for all requests.
+   - Serves as the central entry point for all incoming requests.
    - Routes requests to the appropriate backend services.
-   - Implements rate limiting, request logging, and error handling.
+   - Implements features such as rate limiting, request logging, and error handling.
 
 2. **Order Service**
-   - Manages order lifecycle: creation, status updates, and tracking.
-   - Generates random orders with a predefined rate using Simpy.
-   - Validates stock availability via the Stock Service.
-   - Sends accepted orders to the Delivery Service for fulfillment.
-   - Logs order data in the MySQL database.
+   - Manages customer orders, allowing users to view, create, cancel, or close orders.
+   - Stores order details in the orders database table.
+   - Tracks individual order items and their quantities in the order_items table.
+   - Processes new order requests asynchronously by sending tasks to a queue, where they are handled by the Task Service.
 
 3. **Delivery Service**
-   - Tracks delivery personnel and their current states (idle, en route, delivering).
-   - Assigns orders to available personnel using geospatial proximity calculations (e.g., Haversine formula).
-   - Simulates delivery personnel movement using Simpy.
-   - Updates delivery status and logs completion in the database.
+   - Manages delivery personnel and their statuses (idle, en-route) using the delivery_persons table.
+   - Maintains order-to-delivery-person mappings in the deliveries table.
+   - Allows users to view available delivery personnel and active deliveries.
+   - Assigning a delivery person is handled asynchronously via the Task Service.
 
 4. **Stock Service**
-   - Manages stock levels for the menu.
-   - Decrements stock when an order is accepted.
-   - Periodically restocks based on predefined rules or admin inputs.
+   - Tracks stock levels for available menu items using the stock database table.
+   - Allows users to view current stock levels.
+   - Automatically decrements item quantities when an order is accepted.
 
-5. **Frontend Service**
-   - Displays the live map with delivery personnel and order locations.
-   - Shows real-time graphs of order fulfillment and stock levels.
-   - Allows users to configure simulation parameters (e.g., order rate, stock limits).
+5. **Task Service**
+   - Handles short-term asynchronous tasks via a task queue.
+   - Processes new order requests asynchronously.
+   - Assigns delivery personnel asynchronously.
+   - Does not interact with the database directly; instead, it communicates with other services (Order Service, Stock Service, and Delivery Service) via REST API calls to retrieve and update data.
 
 ### Database
 

@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from typing import List
 
@@ -8,14 +9,14 @@ from mysql.connector.errors import Error as MySQLError
 from pydantic import BaseModel
 
 app = FastAPI(title="Delivery Service API")
-celery = Celery("tasks", broker="redis://redis:6379/0")
+celery = Celery(os.getenv("TASK_QUEUE_NAME"), broker=os.getenv("TASK_QUEUE_BROKER_URL"))
 
 # MySQL configuration
 db_config = {
-    "user": "root",
-    "password": "password",
-    "host": "db",
-    "database": "food_delivery",
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "database": os.getenv("DB_NAME"),
 }
 
 
@@ -35,6 +36,16 @@ class Delivery(BaseModel):
 class AssignDeliveryRequest(BaseModel):
     order_id: str
     customer_distance: float
+
+
+class UpdateDeliveryPersonStatusRequest(BaseModel):
+    person_id: int
+    person_status: str
+
+
+class CreateDeliveryRecordRequest(BaseModel):
+    order_id: str
+    delivery_person_id: int
 
 
 @contextmanager
@@ -82,20 +93,13 @@ def get_delivery_personnel(person_status="all"):
                 )
 
 
-def get_list_of_deliveries(delivery_type="all"):
+def get_list_of_deliveries():
     """
-    Retrieve deliveries from database based on their type
-    Args:
-        delivery_type (str): Filter deliveries by type ('active', 'completed', or 'all')
+    Retrieve deliveries from database
     Returns:
         list: List of deliveries matching the type criteria
     """
-    if delivery_type == "active":
-        query = "SELECT * FROM deliveries WHERE delivery_status = 'active';"
-    elif delivery_type == "completed":
-        query = "SELECT * FROM deliveries WHERE delivery_status = 'completed';"
-    else:
-        query = "SELECT * FROM deliveries;"
+    query = "SELECT * FROM deliveries;"
 
     with get_db_connection() as conn:
         with conn.cursor(dictionary=True) as cursor:
@@ -177,7 +181,7 @@ def fetch_delivery(delivery_id):
                 )
 
 
-def create_delivery_record(order_id, delivery_person_id):
+def create_delivery_record_in_db(order_id, delivery_person_id):
     """
     Create a new delivery record in the database
     Args:
@@ -222,13 +226,10 @@ async def get_idle_delivery_personnel_list():
     return get_delivery_personnel(person_status="idle")
 
 
-@app.get("/delivery_persons/{person_id}", response_model=DeliveryPerson)
+@app.get("/delivery_person/{person_id}", response_model=DeliveryPerson)
 async def get_delivery_person(person_id: int):
     """Get details of a specific delivery person"""
-    person = fetch_delivery_person(person_id)
-    if not person:
-        raise HTTPException(status_code=404, detail="Delivery person not found")
-    return person
+    return fetch_delivery_person(person_id)
 
 
 @app.get("/deliveries", response_model=List[Delivery])
@@ -237,7 +238,7 @@ async def get_all_deliveries():
     return get_list_of_deliveries()
 
 
-@app.get("/deliveries/{delivery_id}", response_model=Delivery)
+@app.get("/delivery/{delivery_id}", response_model=Delivery)
 async def get_delivery(delivery_id: int):
     """Get details of a specific delivery"""
     delivery = fetch_delivery(delivery_id)
@@ -249,19 +250,30 @@ async def get_delivery(delivery_id: int):
 @app.post("/assign_delivery")
 async def assign_delivery(request: AssignDeliveryRequest):
     """Queue the delivery simulation task"""
-    task = celery.send_task("simulate_delivery", args=[request.order_id])
+    task = celery.send_task(
+        "simulate_delivery", args=[request.order_id, request.customer_distance]
+    )
     return {"order_id": request.order_id, "task_id": task.id}
 
 
-@app.post("/update_delivery_person_status/{person_id}")
-async def update_delivery_person(person_id: int, person_status: str):
+@app.post("/update_delivery_person_status", response_model=dict)
+async def update_delivery_person(request: UpdateDeliveryPersonStatusRequest):
     """Update the status of a delivery person"""
-    if person_status not in ["idle", "en_route"]:
+    if request.person_status not in ["idle", "en_route"]:
         raise HTTPException(
             status_code=400, detail="Invalid status. Must be 'idle' or 'en_route'"
         )
-    update_delivery_person_status(person_id, person_status)
+    update_delivery_person_status(request.person_id, request.person_status)
     return {"message": "Delivery person status updated"}
+
+
+@app.post("/create_delivery_record", response_model=dict)
+async def create_delivery_record(request: CreateDeliveryRecordRequest):
+    """Create a new delivery record"""
+    delivery_id = create_delivery_record_in_db(
+        request.order_id, request.delivery_person_id
+    )
+    return {"message": "Delivery created", "delivery_id": delivery_id}
 
 
 if __name__ == "__main__":

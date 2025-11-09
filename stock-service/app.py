@@ -1,3 +1,4 @@
+import os
 from contextlib import contextmanager
 from typing import List
 
@@ -10,10 +11,10 @@ app = FastAPI(title="Stock Service API")
 
 # MySQL configuration
 db_config = {
-    "user": "root",
-    "password": "password",
-    "host": "db",
-    "database": "food_delivery",
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "database": os.getenv("DB_NAME"),
 }
 
 
@@ -24,10 +25,6 @@ class OrderItem(BaseModel):
 
 class OrderItems(BaseModel):
     order_items: List[OrderItem]
-
-
-class StockResponse(BaseModel):
-    message: str
 
 
 @contextmanager
@@ -92,12 +89,10 @@ def batch_update_stock(items, operation="add"):
                     query, [(item.quantity, item.item_id) for item in items]
                 )
                 conn.commit()
-                return {"message": "Stock updated successfully"}, 200
+                return {"message": "Stock updated successfully"}, status.HTTP_200_OK
             except MySQLError as err:
                 conn.rollback()
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
-                )
+                return {"error": str(err)}, status.HTTP_500_INTERNAL_SERVER_ERROR
 
 
 def validate_stock(items):
@@ -112,18 +107,18 @@ def validate_stock(items):
                     )
                     result = cursor.fetchone()
                     if not result:
-                        return False, f"Item {result[1]} not found"
+                        return False, f"Item with ID={item.item_id} not found"
                     elif result[0] - item.quantity < 0:
                         return False, f"Insufficient stock for item {result[1]}"
                     else:
                         return True, "Items currently in stock"
             except MySQLError as err:
                 raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(err)
                 )
 
 
-@app.post("/add_stock", response_model=StockResponse)
+@app.post("/add_stock", response_model=dict)
 async def add_stock(items: OrderItems):
     """
     Add stock quantities for multiple items.
@@ -134,29 +129,27 @@ async def add_stock(items: OrderItems):
     return {"message": "Stock updated"}
 
 
-@app.post("/remove_stock", response_model=StockResponse)
-async def remove_stock(items: OrderItems):
+@app.post("/remove_stock", response_model=dict)
+async def remove_stock(request: OrderItems):
     """
     Remove stock quantities for multiple items.
     """
-    status, message = validate_stock(items.order_items)
-    if not status:
-        raise HTTPException(status_code=400, detail=message)
-    result, status_code = batch_update_stock(items.order_items, operation="remove")
+    validation_status, message = validate_stock(request.order_items)
+    if not validation_status:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
+    result, status_code = batch_update_stock(request.order_items, operation="remove")
     if status_code != 200:
         raise HTTPException(status_code=status_code, detail=result["error"])
     return {"message": "Stock updated"}
 
 
 @app.post("/validate_stock", response_model=dict)
-async def validate_stock_operation(items: OrderItems):
+async def validate_stock_operation(request: OrderItems):
     """
     Validate if stock operations are possible for multiple items.
     """
-    status, message = validate_stock(items.order_items)
-    if not status:
-        raise HTTPException(status_code=400, detail=message)
-    return {"status": status, "message": message}
+    validation_status, message = validate_stock(request.order_items)
+    return {"status": validation_status, "message": message}
 
 
 @app.get("/current_stock")
@@ -175,7 +168,9 @@ async def item_stock(item_id: int):
     """
     stock = get_item_stock(item_id)
     if stock is None:
-        raise HTTPException(status_code=404, detail="Item not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Item not found"
+        )
     return stock
 
 

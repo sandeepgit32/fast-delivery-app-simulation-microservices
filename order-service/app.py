@@ -1,7 +1,8 @@
+import os
 import uuid
 from contextlib import contextmanager
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 
 import mysql.connector
 from celery import Celery
@@ -10,14 +11,14 @@ from mysql.connector.errors import Error as MySQLError
 from pydantic import BaseModel
 
 app = FastAPI(title="Order Service API")
-celery = Celery("tasks", broker="redis://redis:6379/0")
+celery = Celery(os.getenv("TASK_QUEUE_NAME"), broker=os.getenv("TASK_QUEUE_BROKER_URL"))
 
 # MySQL configuration
 db_config = {
-    "user": "root",
-    "password": "password",
-    "host": "db",
-    "database": "food_delivery",
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
+    "host": os.getenv("DB_HOST"),
+    "database": os.getenv("DB_NAME"),
 }
 
 
@@ -32,14 +33,9 @@ class CreateOrderRequest(BaseModel):
     items: List[OrderItem]
 
 
-class OrderResponse(BaseModel):
-    id: str
-    order_time: str
-    customer_name: str
-    customer_distance: float
-    order_status: str
-    items: List[OrderItem]
-    message: Optional[str] = None
+class UpdateOrderRequest(BaseModel):
+    order_id: str
+    message: str
 
 
 @contextmanager
@@ -57,6 +53,42 @@ def get_db_connection():
     finally:
         if conn and conn.is_connected():
             conn.close()
+
+
+def update_order_with_items(order, items):
+    """Insert a new order and its items in a single transaction."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cursor:
+            try:
+                # Insert order
+                cursor.execute(
+                    """INSERT INTO orders 
+                    (id, order_time, customer_name, customer_distance, order_status, response_msg) 
+                    VALUES (%s, %s, %s, %s, %s, %s)""",
+                    (
+                        order["id"],
+                        order["order_time"],
+                        order["customer_name"],
+                        order["customer_distance"],
+                        order["order_status"],
+                        "Order created",
+                    ),
+                )
+
+                # Insert order items
+                values = [(order["id"], item.item_id, item.quantity) for item in items]
+                cursor.executemany(
+                    "INSERT INTO order_items (order_id, item_id, quantity) VALUES (%s, %s, %s)",
+                    values,
+                )
+
+                conn.commit()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to create order with items: {str(e)}",
+                )
 
 
 def update_order(order):
@@ -166,8 +198,11 @@ def update_msg_of_an_order(order_id, response_msg):
         response_msg (str): Response message to be updated
     """
     if not response_msg or not isinstance(response_msg, str):
-        raise ValueError("Response message must be a non-empty string")
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Message must be a non-empty string",
+        )
+
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             try:
@@ -252,9 +287,7 @@ def get_order_details(order_id):
                 )
 
 
-@app.post(
-    "/create_order", response_model=OrderResponse, status_code=status.HTTP_201_CREATED
-)
+@app.post("/create_order", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_order(order_request: CreateOrderRequest):
     """Create a new order and assign delivery."""
     if not order_request.items:
@@ -278,35 +311,37 @@ async def create_order(order_request: CreateOrderRequest):
         "items": order_request.items,
         "response_msg": "Order taken",
     }
+    update_order_with_items(order, order_request.items)
 
-    update_order(order)
-    update_order_items(order["id"], order_request.items)
-    """Queue the process_order task"""
+    # Convert Pydantic models to dictionaries for Celery serialization
+    serializable_items = [item.dict() for item in order_request.items]
+
+    # Queue the process_order task
     task = celery.send_task(
         "process_order",
-        args=[order["id"], order["customer_distance"], order["order_items"]],
+        args=[order["id"], order["customer_distance"], serializable_items],
     )
     return {"order_id": order["id"], "task_id": task.id}
 
 
-@app.post("/close_order/{order_id}", response_model=dict)
-async def close_order(order_id: str):
+@app.post("/close_order", response_model=dict)
+async def close_order(request: UpdateOrderRequest):
     """Mark an order as closed."""
-    update_status_of_an_order(order_id, "completed", "Order delivered")
+    update_status_of_an_order(request.order_id, "completed", request.message)
     return {"order_status": "Order delivered"}
 
 
-@app.post("/cancel_order/{order_id}", response_model=dict)
-async def cancel_order(order_id: str, message: str):
+@app.post("/cancel_order", response_model=dict)
+async def cancel_order(request: UpdateOrderRequest):
     """Cancel an order."""
-    update_status_of_an_order(order_id, "cancelled", message)
+    update_status_of_an_order(request.order_id, "cancelled", request.message)
     return {"order_status": "Order cancelled"}
 
 
-@app.post("/update_msg/{order_id}", response_model=dict)
-async def update_msg(order_id: str, message: str):
+@app.post("/update_msg", response_model=dict)
+async def update_msg(request: UpdateOrderRequest):
     """Update message for an order."""
-    update_msg_of_an_order(order_id, message)
+    update_msg_of_an_order(request.order_id, request.message)
     return {"order_status": "Order message updated"}
 
 
@@ -331,10 +366,7 @@ async def get_completed_orders():
 @app.get("/order/{order_id}")
 async def get_order(order_id: str):
     """Retrieve details of a specific order."""
-    order_details = get_order_details(order_id)
-    if not order_details:
-        raise HTTPException(status_code=404, detail="Order not found")
-    return order_details
+    return get_order_details(order_id)
 
 
 if __name__ == "__main__":

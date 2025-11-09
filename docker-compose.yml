@@ -9,6 +9,8 @@ services:
     build: ./api-gateway
     ports:
       - "5000:5000"
+    volumes:
+      - ./api-gateway:/app
     depends_on:
       - order-service
       - delivery-service
@@ -18,14 +20,15 @@ services:
 
   tasks:
     build: ./tasks
+    volumes:
+      - ./tasks:/app
     depends_on:
       - redis
       - order-service
       - delivery-service
       - stock-service
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    env_file:
+      - ./tasks/.env
     networks:
       - food_delivery_network
 
@@ -33,8 +36,12 @@ services:
     build: ./order-service
     ports:
       - "5001:5001"
+    volumes:
+      - ./order-service:/app
     depends_on:
       - db
+    env_file:
+      - ./order-service/.env
     networks:
       - food_delivery_network
 
@@ -42,9 +49,13 @@ services:
     build: ./delivery-service
     ports:
       - "5002:5002"
+    volumes:
+      - ./delivery-service:/app
     depends_on:
       - db
       - redis
+    env_file:
+      - ./delivery-service/.env
     networks:
       - food_delivery_network
 
@@ -52,8 +63,25 @@ services:
     build: ./stock-service
     ports:
       - "5003:5003"
+    volumes:
+      - ./stock-service:/app
     depends_on:
       - db
+    env_file:
+      - ./stock-service/.env
+    networks:
+      - food_delivery_network
+
+  order-auto-generation-service:
+    build: ./order-auto-generation-service
+    ports:
+      - "5005:5005"
+    volumes:
+      - ./order-auto-generation-service:/app
+    depends_on:
+      - order-service
+    env_file:
+      - ./order-auto-generation-service/.env
     networks:
       - food_delivery_network
 
@@ -61,6 +89,8 @@ services:
   #   build: ./frontend-service
   #   ports:
   #     - "8080:8080"
+  #   volumes:
+  #     - ./frontend-service:/app
   #   depends_on:
   #     - api-gateway
   #   networks:
