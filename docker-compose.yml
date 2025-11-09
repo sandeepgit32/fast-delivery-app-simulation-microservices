@@ -72,29 +72,27 @@ services:
     networks:
       - food_delivery_network
 
-  order-auto-generation-service:
-    build: ./order-auto-generation-service
-    ports:
-      - "5005:5005"
-    volumes:
-      - ./order-auto-generation-service:/app
-    depends_on:
-      - order-service
-    env_file:
-      - ./order-auto-generation-service/.env
-    networks:
-      - food_delivery_network
-
-  # frontend-service:
-  #   build: ./frontend-service
+  # order-auto-generation-service:
+  #   build: ./order-auto-generation-service
   #   ports:
-  #     - "8080:8080"
+  #     - "5005:5005"
   #   volumes:
-  #     - ./frontend-service:/app
+  #     - ./order-auto-generation-service:/app
   #   depends_on:
-  #     - api-gateway
+  #     - order-service
+  #   env_file:
+  #     - ./order-auto-generation-service/.env
   #   networks:
   #     - food_delivery_network
+
+  frontend-service:
+    build: ./frontend-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - api-gateway
+    networks:
+      - food_delivery_network
 
   db:
     build: ./database
