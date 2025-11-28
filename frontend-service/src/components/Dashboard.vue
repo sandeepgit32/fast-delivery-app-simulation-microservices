@@ -13,7 +13,7 @@
 
     <div v-else>
       <!-- Statistics Cards -->
-      <div class="grid grid-4">
+      <div class="grid grid-4" style="margin-bottom: 50px;">
         <div class="stat-card stat-primary">
           <div class="stat-icon">📦</div>
           <div class="stat-details">
@@ -43,83 +43,6 @@
           <div class="stat-details">
             <div class="stat-label">En Route</div>
             <div class="stat-value">{{ stats.enRoutePersonnel }}</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Recent Orders and Active Deliveries -->
-      <div class="grid grid-2">
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Recent Orders</h3>
-            <router-link to="/orders" class="btn btn-sm btn-primary">View All</router-link>
-          </div>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Order ID</th>
-                  <th>Customer</th>
-                  <th>Status</th>
-                  <th>Created At</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="recentOrders.length === 0">
-                  <td colspan="4" style="text-align: center; color: #94a3b8;">No orders found</td>
-                </tr>
-                <tr v-for="order in recentOrders" :key="order.order_id">
-                  <td><strong>#{{ order.order_id }}</strong></td>
-                  <td>{{ order.customer_name }}</td>
-                  <td>
-                    <span 
-                      class="badge" 
-                      :class="{
-                        'badge-success': order.status === 'completed',
-                        'badge-warning': order.status === 'confirmed',
-                        'badge-info': order.status === 'pending',
-                        'badge-danger': order.status === 'cancelled'
-                      }"
-                    >
-                      {{ order.status }}
-                    </span>
-                  </td>
-                  <td>{{ formatDate(order.created_at) }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Active Deliveries</h3>
-            <router-link to="/deliveries" class="btn btn-sm btn-primary">View All</router-link>
-          </div>
-          <div class="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Delivery ID</th>
-                  <th>Order ID</th>
-                  <th>Person</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="activeDeliveries.length === 0">
-                  <td colspan="4" style="text-align: center; color: #94a3b8;">No active deliveries</td>
-                </tr>
-                <tr v-for="delivery in activeDeliveries" :key="delivery.delivery_id">
-                  <td><strong>#{{ delivery.delivery_id }}</strong></td>
-                  <td>#{{ delivery.order_id }}</td>
-                  <td>{{ delivery.person_name }}</td>
-                  <td>
-                    <span class="badge badge-warning">{{ delivery.delivery_status }}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </div>
@@ -174,8 +97,6 @@ export default {
         idlePersonnel: 0,
         enRoutePersonnel: 0
       },
-      recentOrders: [],
-      activeDeliveries: [],
       stockItems: [],
       refreshInterval: null
     }
@@ -198,12 +119,11 @@ export default {
       this.error = null
 
       try {
-        const [orders, activeOrders, idlePersons, enRoutePersons, deliveries, stock] = await Promise.all([
+        const [orders, activeOrders, idlePersons, enRoutePersons, stock] = await Promise.all([
           api.getAllOrders(),
           api.getActiveOrders(),
           api.getIdlePersons(),
           api.getEnRoutePersons(),
-          api.getAllDeliveries(),
           api.getCurrentStock()
         ])
 
@@ -212,10 +132,6 @@ export default {
         this.stats.idlePersonnel = idlePersons.data.length
         this.stats.enRoutePersonnel = enRoutePersons.data.length
 
-        this.recentOrders = orders.data.slice(0, 5)
-        this.activeDeliveries = deliveries.data
-          .filter(d => d.delivery_status === 'en_route')
-          .slice(0, 5)
         this.stockItems = stock.data
 
       } catch (err) {
@@ -227,11 +143,6 @@ export default {
     },
     refreshData() {
       this.fetchDashboardData()
-    },
-    formatDate(dateString) {
-      if (!dateString) return 'N/A'
-      const date = new Date(dateString)
-      return date.toLocaleString()
     },
     getStockPercentage(quantity) {
       const max = 100
