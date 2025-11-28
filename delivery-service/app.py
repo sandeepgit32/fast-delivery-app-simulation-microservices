@@ -30,12 +30,15 @@ class DeliveryPerson(BaseModel):
 class Delivery(BaseModel):
     id: int
     order_id: str
+    order_status: str
+    customer_name: str
+    customer_distance: float
     delivery_person_id: int
+    delivery_person_name: str
 
 
 class AssignDeliveryRequest(BaseModel):
     order_id: str
-    customer_distance: float
 
 
 class UpdateDeliveryPersonStatusRequest(BaseModel):
@@ -99,7 +102,23 @@ def get_list_of_deliveries():
     Returns:
         list: List of deliveries matching the type criteria
     """
-    query = "SELECT * FROM deliveries;"
+    query = """
+    SELECT
+        dl.id,
+        dl.order_id,
+        o.order_status,
+        o.customer_name,
+        o.customer_distance,
+        dl.delivery_person_id,
+        dp.name AS delivery_person_name
+    FROM
+        deliveries dl
+    LEFT JOIN delivery_persons dp 
+    ON
+        dl.delivery_person_id = dp.id
+    LEFT JOIN orders o
+    ON
+        dl.order_id = o.id;"""
 
     with get_db_connection() as conn:
         with conn.cursor(dictionary=True) as cursor:
@@ -171,7 +190,27 @@ def fetch_delivery(delivery_id):
     with get_db_connection() as conn:
         with conn.cursor(dictionary=True) as cursor:
             try:
-                cursor.execute("SELECT * FROM deliveries WHERE id = %s", (delivery_id,))
+                cursor.execute(
+                    """
+                    SELECT
+                        dl.id,
+                        dl.order_id,
+                        o.order_status,
+                        o.customer_name,
+                        o.customer_distance,
+                        dl.delivery_person_id,
+                        dp.name AS delivery_person_name
+                    FROM
+                        deliveries dl
+                    LEFT JOIN delivery_persons dp 
+                    ON
+                        dl.delivery_person_id = dp.id
+                    LEFT JOIN orders o
+                    ON
+                        dl.order_id = o.id
+                    WHERE dl.id = %s;""",
+                    (delivery_id,),
+                )
                 return cursor.fetchone()
             except MySQLError as e:
                 conn.rollback()
@@ -205,6 +244,27 @@ def create_delivery_record_in_db(order_id, delivery_person_id):
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail=f"Failed to create delivery record: {str(e)}",
+                )
+
+
+def fetch_order(order_id):
+    """
+    Retrieve specific order by its ID
+    Args:
+        order_id: ID of the order
+    Returns:
+        dict: Order details or None if not found
+    """
+    with get_db_connection() as conn:
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute("SELECT * FROM orders WHERE id = %s", (order_id,))
+                return cursor.fetchone()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve order details: {str(e)}",
                 )
 
 
@@ -250,8 +310,13 @@ async def get_delivery(delivery_id: int):
 @app.post("/assign_delivery")
 async def assign_delivery(request: AssignDeliveryRequest):
     """Queue the delivery simulation task"""
+    # Fetch order to get customer_distance
+    order = fetch_order(request.order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
     task = celery.send_task(
-        "simulate_delivery", args=[request.order_id, request.customer_distance]
+        "simulate_delivery", args=[request.order_id, order["customer_distance"]]
     )
     return {"order_id": request.order_id, "task_id": task.id}
 

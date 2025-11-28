@@ -23,20 +23,28 @@
             <tr>
               <th>Delivery ID</th>
               <th>Order ID</th>
-              <th>Delivery Person ID</th>
+              <th>Order Status</th>
+              <th>Customer Name</th>
+              <th>Delivery Person Name</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="deliveries.length === 0">
-              <td colspan="4" style="text-align: center; color: #94a3b8; padding: 40px;">
+              <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px;">
                 No deliveries found
               </td>
             </tr>
             <tr v-for="delivery in deliveries" :key="delivery.id">
               <td><strong>#{{ delivery.id }}</strong></td>
               <td>#{{ delivery.order_id }}</td>
-              <td>#{{ delivery.delivery_person_id }}</td>
+              <td>
+                <span class="status-badge" :class="'status-' + delivery.order_status">
+                  {{ delivery.order_status }}
+                </span>
+              </td>
+              <td>{{ delivery.customer_name }}</td>
+              <td>{{ delivery.delivery_person_name }}</td>
               <td>
                 <button 
                   @click="viewDeliveryDetails(delivery.id)" 
@@ -68,7 +76,22 @@
               <strong>Order ID:</strong> #{{ selectedDelivery.order_id }}
             </div>
             <div class="detail-item">
+              <strong>Order Status:</strong> 
+              <span class="status-badge" :class="'status-' + selectedDelivery.order_status">
+                {{ selectedDelivery.order_status }}
+              </span>
+            </div>
+            <div class="detail-item">
+              <strong>Customer Name:</strong> {{ selectedDelivery.customer_name }}
+            </div>
+            <div class="detail-item">
+              <strong>Customer Distance:</strong> {{ selectedDelivery.customer_distance }} km
+            </div>
+            <div class="detail-item">
               <strong>Delivery Person ID:</strong> #{{ selectedDelivery.delivery_person_id }}
+            </div>
+            <div class="detail-item">
+              <strong>Delivery Person Name:</strong> {{ selectedDelivery.delivery_person_name }}
             </div>
           </div>
         </div>
@@ -85,6 +108,32 @@
     <div v-if="successMessage" class="alert alert-success">
       {{ successMessage }}
     </div>
+
+    <!-- Assign Delivery Modal -->
+    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>Assign Delivery</h3>
+          <button @click="showAssignModal = false" class="close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="order_id">Order ID:</label>
+            <input 
+              type="text" 
+              id="order_id" 
+              v-model="assignForm.order_id" 
+              class="form-control"
+              placeholder="Enter Order ID"
+            >
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showAssignModal = false" class="btn btn-secondary">Cancel</button>
+          <button @click="submitAssignDelivery" class="btn btn-success">Assign</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -100,7 +149,11 @@ export default {
       successMessage: null,
       deliveries: [],
       showDetailsModal: false,
-      selectedDelivery: null
+      selectedDelivery: null,
+      showAssignModal: false,
+      assignForm: {
+        order_id: ''
+      }
     }
   },
   mounted() {
@@ -120,17 +173,30 @@ export default {
         this.loading = false
       }
     },
-    async assignDelivery() {
+    assignDelivery() {
+      this.error = null
+      this.successMessage = null
+      this.assignForm.order_id = ''
+      this.showAssignModal = true
+    },
+    async submitAssignDelivery() {
       this.error = null
       this.successMessage = null
 
+      if (!this.assignForm.order_id) {
+        this.error = 'Please enter an Order ID'
+        return
+      }
+
       try {
-        await api.assignDelivery()
+        await api.assignDelivery(this.assignForm.order_id)
         this.successMessage = 'Delivery assignment queued successfully!'
+        this.showAssignModal = false
+        this.assignForm.order_id = ''
         await this.fetchDeliveries()
         setTimeout(() => this.successMessage = null, 3000)
       } catch (err) {
-        this.error = 'Failed to assign delivery: ' + (err.response?.data?.error || err.message)
+        this.error = 'Failed to assign delivery: ' + (err.response?.data?.detail || err.response?.data?.error || err.message)
       }
     },
     async viewDeliveryDetails(deliveryId) {
@@ -262,6 +328,57 @@ export default {
   color: var(--text-secondary);
   font-size: 0.875rem;
   margin-bottom: 4px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: inline-block;
+}
+
+.status-active {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-completed {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
 }
 
 @media (max-width: 768px) {
