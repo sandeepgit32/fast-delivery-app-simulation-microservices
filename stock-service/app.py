@@ -77,13 +77,32 @@ def batch_update_stock(items, operation="add"):
     with get_db_connection() as conn:
         with conn.cursor() as cursor:
             try:
+                # If adding stock, validate against max_quantity
+                if operation == "add":
+                    for item in items:
+                        cursor.execute(
+                            "SELECT quantity, max_quantity, item_name FROM stock WHERE item_id = %s",
+                            (item.item_id,),
+                        )
+                        result = cursor.fetchone()
+                        if not result:
+                            conn.rollback()
+                            return {
+                                "error": f"Item with ID={item.item_id} not found"
+                            }, status.HTTP_404_NOT_FOUND
+                        current_qty, max_qty, item_name = result
+                        new_qty = current_qty + item.quantity
+                        if new_qty > max_qty:
+                            conn.rollback()
+                            return {
+                                "error": f"Adding {item.quantity} units to {item_name} would exceed maximum capacity ({max_qty}). Current: {current_qty}"
+                            }, status.HTTP_400_BAD_REQUEST
+
                 query = """
                     UPDATE stock 
                     SET quantity = quantity {} %s 
                     WHERE item_id = %s
-                """.format(
-                    "+" if operation == "add" else "-"
-                )
+                """.format("+" if operation == "add" else "-")
 
                 cursor.executemany(
                     query, [(item.quantity, item.item_id) for item in items]
@@ -102,7 +121,7 @@ def validate_stock(items):
             try:
                 for item in items:
                     cursor.execute(
-                        "SELECT quantity, item_name FROM stock WHERE item_id = %s",
+                        "SELECT quantity, item_name, max_quantity FROM stock WHERE item_id = %s",
                         (item.item_id,),
                     )
                     result = cursor.fetchone()
@@ -122,6 +141,7 @@ def validate_stock(items):
 async def add_stock(items: OrderItems):
     """
     Add stock quantities for multiple items.
+    Validates that new quantity does not exceed max_quantity.
     """
     result, status_code = batch_update_stock(items.order_items, operation="add")
     if status_code != 200:

@@ -6,7 +6,8 @@ USE food_delivery;
 CREATE TABLE IF NOT EXISTS stock (
     item_id INT AUTO_INCREMENT PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
-    quantity INT NOT NULL
+    quantity INT NOT NULL,
+    max_quantity INT NOT NULL
 );
 
 -- Create delivery_persons table (no dependencies)
@@ -50,17 +51,17 @@ CREATE TABLE IF NOT EXISTS deliveries (
 );
 
 -- Insert sample data into stock table 
-INSERT INTO stock (item_name, quantity) VALUES
-('Product 1', 100),
-('Product 2', 150),
-('Product 3', 200),
-('Product 4', 300),
-('Product 5', 250),
-('Product 6', 175),
-('Product 7', 125),
-('Product 8', 400),
-('Product 9', 225),
-('Product 10', 350);
+INSERT INTO stock (item_name, quantity, max_quantity) VALUES
+('Product 1', 100, 500),
+('Product 2', 150, 400),
+('Product 3', 200, 600),
+('Product 4', 300, 800),
+('Product 5', 250, 500),
+('Product 6', 175, 350),
+('Product 7', 125, 450),
+('Product 8', 400, 1000),
+('Product 9', 225, 550),
+('Product 10', 350, 700);
 
 -- Insert sample data into delivery_persons table
 INSERT INTO delivery_persons (name, phone_number, person_status) VALUES

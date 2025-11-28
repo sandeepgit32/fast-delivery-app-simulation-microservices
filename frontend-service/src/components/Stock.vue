@@ -24,13 +24,14 @@
               <th>Item ID</th>
               <th>Item Name</th>
               <th>Quantity</th>
+              <th>Max Quantity</th>
               <th>Stock Status</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="stockItems.length === 0">
-              <td colspan="5" style="text-align: center; color: #94a3b8; padding: 40px;">
+              <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px;">
                 No stock items found
               </td>
             </tr>
@@ -40,6 +41,11 @@
               <td>
                 <strong :style="{ color: getQuantityColor(item.quantity) }">
                   {{ item.quantity }}
+                </strong>
+              </td>
+              <td>
+                <strong style="color: var(--text-secondary);">
+                  {{ item.max_quantity }}
                 </strong>
               </td>
               <td>
@@ -123,6 +129,10 @@
               <input v-model.number="selectedItem.quantity" type="number" disabled />
             </div>
             <div class="form-group">
+              <label>Max Quantity</label>
+              <input v-model.number="selectedItem.max_quantity" type="number" disabled />
+            </div>
+            <div class="form-group">
               <label>Quantity to Add *</label>
               <input v-model.number="quantityToAdd" type="number" placeholder="Enter quantity" min="1" />
             </div>
@@ -154,6 +164,10 @@
           <div class="form-group">
             <label>Current Quantity</label>
             <input v-model.number="selectedItem.quantity" type="number" disabled />
+          </div>
+          <div class="form-group">
+            <label>Max Quantity</label>
+            <input v-model.number="selectedItem.max_quantity" type="number" disabled />
           </div>
           <div class="form-group">
             <label>Quantity to Remove *</label>

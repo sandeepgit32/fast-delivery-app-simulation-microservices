@@ -62,13 +62,13 @@
           >
             <div class="stock-item-name">{{ item.item_name }}</div>
             <div class="stock-item-quantity">
-              <span class="quantity-value">{{ item.quantity }}</span>
-              <span class="quantity-label">in stock</span>
+              <span class="quantity-value">{{ item.quantity }}/{{ item.max_quantity }}</span>
+              <span class="quantity-label">({{ getStockPercentage(item.quantity, item.max_quantity) }}%)</span>
             </div>
             <div class="stock-item-bar">
               <div 
                 class="stock-item-fill" 
-                :style="{ width: getStockPercentage(item.quantity) + '%' }"
+                :style="{ width: getStockPercentage(item.quantity, item.max_quantity) + '%' }"
               ></div>
             </div>
           </div>
@@ -144,9 +144,9 @@ export default {
     refreshData() {
       this.fetchDashboardData()
     },
-    getStockPercentage(quantity) {
-      const max = 100
-      return Math.min((quantity / max) * 100, 100)
+    getStockPercentage(quantity, maxQuantity) {
+      if (!maxQuantity || maxQuantity === 0) return 0
+      return Math.round((quantity / maxQuantity) * 100)
     }
   }
 }
@@ -262,7 +262,7 @@ export default {
 }
 
 .quantity-value {
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
 }
