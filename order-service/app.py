@@ -302,7 +302,7 @@ async def create_order(order_request: CreateOrderRequest):
             detail="Customer distance must be greater than 0",
         )
     order_id = uuid.uuid4().hex
-    order_id = order_id[-15:]
+    order_id = order_id[-8:]
     order = {
         "id": order_id,
         "order_time": datetime.now().isoformat(),
