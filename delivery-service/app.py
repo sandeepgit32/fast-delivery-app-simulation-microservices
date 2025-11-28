@@ -1,12 +1,13 @@
 import os
 from contextlib import contextmanager
-from typing import List
+from datetime import datetime
+from typing import List, Optional, Union
 
 import mysql.connector
 from celery import Celery
 from fastapi import FastAPI, HTTPException, status
 from mysql.connector.errors import Error as MySQLError
-from pydantic import BaseModel
+from pydantic import BaseModel, field_serializer
 
 app = FastAPI(title="Delivery Service API")
 celery = Celery(os.getenv("TASK_QUEUE_NAME"), broker=os.getenv("TASK_QUEUE_BROKER_URL"))
@@ -35,6 +36,14 @@ class Delivery(BaseModel):
     customer_distance: float
     delivery_person_id: int
     delivery_person_name: str
+    order_time: Union[datetime, str]
+    delivered_at: Optional[Union[datetime, str]]
+
+    @field_serializer("order_time", "delivered_at")
+    def serialize_datetime(self, value, _info):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        return value
 
 
 class AssignDeliveryRequest(BaseModel):
@@ -107,9 +116,11 @@ def get_list_of_deliveries():
         dl.id,
         dl.order_id,
         o.order_status,
+        o.order_time,
         o.customer_name,
         o.customer_distance,
         dl.delivery_person_id,
+        o.delivered_at,
         dp.name AS delivery_person_name
     FROM
         deliveries dl
@@ -196,9 +207,11 @@ def fetch_delivery(delivery_id):
                         dl.id,
                         dl.order_id,
                         o.order_status,
+                        o.order_time,
                         o.customer_name,
                         o.customer_distance,
                         dl.delivery_person_id,
+                        o.delivered_at,
                         dp.name AS delivery_person_name
                     FROM
                         deliveries dl

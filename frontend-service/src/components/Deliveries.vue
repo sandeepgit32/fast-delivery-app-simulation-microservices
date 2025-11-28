@@ -66,12 +66,30 @@
                   <span class="sort-icon inactive" v-else>⇅</span>
                 </div>
               </th>
+              <th @click="sortTable('order_time')" class="sortable">
+                <div class="th-content">
+                  Order Time
+                  <span class="sort-icon" v-if="sortBy === 'order_time'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('delivered_at')" class="sortable">
+                <div class="th-content">
+                  Delivery Time
+                  <span class="sort-icon" v-if="sortBy === 'delivered_at'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
             <tr v-if="sortedDeliveries.length === 0">
-              <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px;">
+              <td colspan="8" style="text-align: center; color: #94a3b8; padding: 40px;">
                 No deliveries found
               </td>
             </tr>
@@ -85,6 +103,8 @@
               </td>
               <td>{{ delivery.customer_name }}</td>
               <td>{{ delivery.delivery_person_name }}</td>
+              <td>{{ formatDate(delivery.order_time) }}</td>
+              <td>{{ formatDate(delivery.delivered_at) }}</td>
               <td>
                 <button 
                   @click="viewDeliveryDetails(delivery.id)" 
@@ -132,6 +152,12 @@
             </div>
             <div class="detail-item">
               <strong>Delivery Person Name:</strong> {{ selectedDelivery.delivery_person_name }}
+            </div>
+            <div class="detail-item">
+              <strong>Order Time:</strong> {{ formatDate(selectedDelivery.order_time) }}
+            </div>
+            <div class="detail-item">
+              <strong>Delivery Time:</strong> {{ formatDate(selectedDelivery.delivered_at) }}
             </div>
           </div>
         </div>
@@ -227,6 +253,14 @@ export default {
           case 'delivery_person_name':
             aValue = a.delivery_person_name.toLowerCase()
             bValue = b.delivery_person_name.toLowerCase()
+            break
+          case 'order_time':
+            aValue = new Date(a.order_time || 0)
+            bValue = new Date(b.order_time || 0)
+            break
+          case 'delivered_at':
+            aValue = new Date(a.delivered_at || 0)
+            bValue = new Date(b.delivered_at || 0)
             break
           default:
             return 0
