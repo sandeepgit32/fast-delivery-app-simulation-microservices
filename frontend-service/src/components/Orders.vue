@@ -46,13 +46,61 @@
         <table>
           <thead>
             <tr>
-              <th>Order ID</th>
-              <th>Customer Name</th>
-              <th>Distance (km)</th>
-              <th>Status</th>
+              <th @click="sortTable('id')" class="sortable">
+                <div class="th-content">
+                  Order ID
+                  <span class="sort-icon" v-if="sortBy === 'id'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('customer_name')" class="sortable">
+                <div class="th-content">
+                  Customer Name
+                  <span class="sort-icon" v-if="sortBy === 'customer_name'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('customer_distance')" class="sortable">
+                <div class="th-content">
+                  Distance (km)
+                  <span class="sort-icon" v-if="sortBy === 'customer_distance'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('order_status')" class="sortable">
+                <div class="th-content">
+                  Status
+                  <span class="sort-icon" v-if="sortBy === 'order_status'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
               <th>Message</th>
-              <th>Order Time</th>
-              <th>Delivery Time</th>
+              <th @click="sortTable('order_time')" class="sortable">
+                <div class="th-content">
+                  Order Time
+                  <span class="sort-icon" v-if="sortBy === 'order_time'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('delivered_at')" class="sortable">
+                <div class="th-content">
+                  Delivery Time
+                  <span class="sort-icon" v-if="sortBy === 'delivered_at'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -265,14 +313,58 @@ export default {
         customer_name: '',
         customer_distance: 0,
         items: [{ item_id: 1, quantity: 1 }]
-      }
+      },
+      // Sorting state
+      sortBy: null,
+      sortOrder: 'asc'
     }
   },
   computed: {
     filteredOrders() {
-      if (this.currentFilter === 'active') return this.activeOrders
-      if (this.currentFilter === 'completed') return this.completedOrders
-      return this.allOrders
+      let orders
+      if (this.currentFilter === 'active') orders = this.activeOrders
+      else if (this.currentFilter === 'completed') orders = this.completedOrders
+      else orders = this.allOrders
+
+      if (!this.sortBy) return orders
+
+      const sortedOrders = [...orders]
+      return sortedOrders.sort((a, b) => {
+        let aValue, bValue
+
+        switch (this.sortBy) {
+          case 'id':
+            aValue = a.id
+            bValue = b.id
+            break
+          case 'customer_name':
+            aValue = a.customer_name.toLowerCase()
+            bValue = b.customer_name.toLowerCase()
+            break
+          case 'customer_distance':
+            aValue = a.customer_distance
+            bValue = b.customer_distance
+            break
+          case 'order_status':
+            aValue = a.order_status.toLowerCase()
+            bValue = b.order_status.toLowerCase()
+            break
+          case 'order_time':
+            aValue = new Date(a.order_time || 0)
+            bValue = new Date(b.order_time || 0)
+            break
+          case 'delivered_at':
+            aValue = new Date(a.delivered_at || 0)
+            bValue = new Date(b.delivered_at || 0)
+            break
+          default:
+            return 0
+        }
+
+        if (aValue < bValue) return this.sortOrder === 'asc' ? -1 : 1
+        if (aValue > bValue) return this.sortOrder === 'asc' ? 1 : -1
+        return 0
+      })
     }
   },
   mounted() {
@@ -360,6 +452,14 @@ export default {
     },
     refreshOrders() {
       this.fetchOrders()
+    },
+    sortTable(column) {
+      if (this.sortBy === column) {
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc'
+      } else {
+        this.sortBy = column
+        this.sortOrder = 'asc'
+      }
     },
     formatDate(dateString) {
       if (!dateString) return 'N/A'
@@ -527,6 +627,34 @@ export default {
 .btn-secondary {
   background-color: var(--secondary-color);
   color: white;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.sortable:hover {
+  background-color: var(--bg-primary);
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.sort-icon.inactive {
+  color: var(--text-secondary);
+  opacity: 0.4;
 }
 
 @media (max-width: 768px) {

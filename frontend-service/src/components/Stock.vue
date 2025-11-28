@@ -21,25 +21,74 @@
         <table>
           <thead>
             <tr>
-              <th>Item ID</th>
-              <th>Item Name</th>
-              <th>Quantity</th>
-              <th>Max Quantity</th>
-              <th>Stock Status</th>
+              <th @click="sortTable('item_id')" class="sortable">
+                <div class="th-content">
+                  Item ID
+                  <span class="sort-icon" v-if="sortBy === 'item_id'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('item_name')" class="sortable">
+                <div class="th-content">
+                  Item Name
+                  <span class="sort-icon" v-if="sortBy === 'item_name'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('quantity')" class="sortable">
+                <div class="th-content">
+                  Quantity
+                  <span class="sort-icon" v-if="sortBy === 'quantity'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('max_quantity')" class="sortable">
+                <div class="th-content">
+                  Max Quantity
+                  <span class="sort-icon" v-if="sortBy === 'max_quantity'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('status')" class="sortable">
+                <div class="th-content">
+                  Stock Status
+                  <span class="sort-icon" v-if="sortBy === 'status'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('progress')" class="sortable">
+                <div class="th-content">
+                  Progress
+                  <span class="sort-icon" v-if="sortBy === 'progress'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="stockItems.length === 0">
-              <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px;">
+            <tr v-if="sortedStockItems.length === 0">
+              <td colspan="7" style="text-align: center; color: #94a3b8; padding: 40px;">
                 No stock items found
               </td>
             </tr>
-            <tr v-for="item in stockItems" :key="item.item_id">
+            <tr v-for="item in sortedStockItems" :key="item.item_id">
               <td><strong>#{{ item.item_id }}</strong></td>
               <td>{{ item.item_name }}</td>
               <td>
-                <strong :style="{ color: getQuantityColor(item.quantity) }">
+                <strong :style="{ color: getQuantityColor(getStockPercentage(item.quantity, item.max_quantity)) }">
                   {{ item.quantity }}
                 </strong>
               </td>
@@ -51,14 +100,22 @@
               <td>
                 <span 
                   class="badge" 
-                  :class="{
-                    'badge-success': item.quantity >= 50,
-                    'badge-warning': item.quantity >= 10 && item.quantity < 50,
-                    'badge-danger': item.quantity < 10
-                  }"
+                  :class="getStockStatusClass(getStockPercentage(item.quantity, item.max_quantity))"
                 >
-                  {{ getStockStatus(item.quantity) }}
+                  {{ getStockStatus(getStockPercentage(item.quantity, item.max_quantity)) }}
                 </span>
+              </td>
+              <td>
+                <div class="progress-cell">
+                  <div class="progress-bar-container">
+                    <div 
+                      class="progress-bar-fill"
+                      :class="getStockLevelClass(getStockPercentage(item.quantity, item.max_quantity))"
+                      :style="{ width: getStockPercentage(item.quantity, item.max_quantity) + '%' }"
+                    ></div>
+                  </div>
+                  <span class="progress-label">{{ getStockPercentage(item.quantity, item.max_quantity) }}%</span>
+                </div>
               </td>
               <td>
                 <div class="action-buttons">
@@ -213,7 +270,66 @@ export default {
       selectedItem: null,
       quantityToAdd: 0,
       quantityToRemove: 0,
-      addStockItems: [{ item_id: 1, quantity: 10 }]
+      addStockItems: [{ item_id: 1, quantity: 10 }],
+      // Configurable stock level thresholds
+      stockThresholds: {
+        high: 50,    // >= 50% - Green
+        medium: 25,  // >= 25% and < 50% - Yellow
+        // < 25% - Red
+      },
+      // Sorting state
+      sortBy: null,
+      sortOrder: 'asc' // 'asc' or 'desc'
+    }
+  },
+  computed: {
+    sortedStockItems() {
+      if (!this.sortBy) {
+        return this.stockItems
+      }
+
+      const items = [...this.stockItems]
+      
+      return items.sort((a, b) => {
+        let aValue, bValue
+
+        switch (this.sortBy) {
+          case 'item_id':
+            aValue = a.item_id
+            bValue = b.item_id
+            break
+          case 'item_name':
+            aValue = a.item_name.toLowerCase()
+            bValue = b.item_name.toLowerCase()
+            break
+          case 'quantity':
+            aValue = a.quantity
+            bValue = b.quantity
+            break
+          case 'max_quantity':
+            aValue = a.max_quantity
+            bValue = b.max_quantity
+            break
+          case 'status':
+            aValue = this.getStockPercentage(a.quantity, a.max_quantity)
+            bValue = this.getStockPercentage(b.quantity, b.max_quantity)
+            break
+          case 'progress':
+            aValue = this.getStockPercentage(a.quantity, a.max_quantity)
+            bValue = this.getStockPercentage(b.quantity, b.max_quantity)
+            break
+          default:
+            return 0
+        }
+
+        if (aValue < bValue) {
+          return this.sortOrder === 'asc' ? -1 : 1
+        }
+        if (aValue > bValue) {
+          return this.sortOrder === 'asc' ? 1 : -1
+        }
+        return 0
+      })
     }
   },
   mounted() {
@@ -315,14 +431,42 @@ export default {
     refreshStock() {
       this.fetchStock()
     },
-    getStockStatus(quantity) {
-      if (quantity >= 50) return 'Good Stock'
-      if (quantity >= 10) return 'Low Stock'
-      return 'Critical'
+    sortTable(column) {
+      if (this.sortBy === column) {
+        // Toggle sort order if clicking the same column
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc'
+      } else {
+        // Set new column and default to ascending
+        this.sortBy = column
+        this.sortOrder = 'asc'
+      }
     },
-    getQuantityColor(quantity) {
-      if (quantity >= 50) return 'var(--success-color)'
-      if (quantity >= 10) return 'var(--warning-color)'
+    getStockPercentage(quantity, maxQuantity) {
+      if (!maxQuantity || maxQuantity === 0) return 0
+      return Math.round((quantity / maxQuantity) * 100)
+    },
+    getStockLevelClass(percentage) {
+      if (percentage >= this.stockThresholds.high) {
+        return 'progress-high'
+      } else if (percentage >= this.stockThresholds.medium) {
+        return 'progress-medium'
+      } else {
+        return 'progress-low'
+      }
+    },
+    getStockStatus(percentage) {
+      if (percentage >= this.stockThresholds.high) return 'High Stock'
+      if (percentage >= this.stockThresholds.medium) return 'Medium Stock'
+      return 'Low Stock'
+    },
+    getStockStatusClass(percentage) {
+      if (percentage >= this.stockThresholds.high) return 'badge-success'
+      if (percentage >= this.stockThresholds.medium) return 'badge-warning'
+      return 'badge-danger'
+    },
+    getQuantityColor(percentage) {
+      if (percentage >= this.stockThresholds.high) return 'var(--success-color)'
+      if (percentage >= this.stockThresholds.medium) return 'var(--warning-color)'
       return 'var(--danger-color)'
     }
   }
@@ -438,6 +582,74 @@ export default {
 .btn-secondary {
   background-color: var(--secondary-color);
   color: white;
+}
+
+.progress-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 200px;
+}
+
+.progress-bar-container {
+  flex: 1;
+  height: 8px;
+  background: var(--border-color);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.progress-high {
+  background: var(--success-color);
+}
+
+.progress-medium {
+  background: var(--warning-color);
+}
+
+.progress-low {
+  background: var(--danger-color);
+}
+
+.progress-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 45px;
+  text-align: right;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.sortable:hover {
+  background-color: var(--bg-primary);
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.sort-icon.inactive {
+  color: var(--text-secondary);
+  opacity: 0.4;
 }
 
 @media (max-width: 768px) {

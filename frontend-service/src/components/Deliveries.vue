@@ -21,21 +21,61 @@
         <table>
           <thead>
             <tr>
-              <th>Delivery ID</th>
-              <th>Order ID</th>
-              <th>Order Status</th>
-              <th>Customer Name</th>
-              <th>Delivery Person Name</th>
+              <th @click="sortTable('id')" class="sortable">
+                <div class="th-content">
+                  Delivery ID
+                  <span class="sort-icon" v-if="sortBy === 'id'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('order_id')" class="sortable">
+                <div class="th-content">
+                  Order ID
+                  <span class="sort-icon" v-if="sortBy === 'order_id'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('order_status')" class="sortable">
+                <div class="th-content">
+                  Order Status
+                  <span class="sort-icon" v-if="sortBy === 'order_status'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('customer_name')" class="sortable">
+                <div class="th-content">
+                  Customer Name
+                  <span class="sort-icon" v-if="sortBy === 'customer_name'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('delivery_person_name')" class="sortable">
+                <div class="th-content">
+                  Delivery Person Name
+                  <span class="sort-icon" v-if="sortBy === 'delivery_person_name'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-if="deliveries.length === 0">
+            <tr v-if="sortedDeliveries.length === 0">
               <td colspan="6" style="text-align: center; color: #94a3b8; padding: 40px;">
                 No deliveries found
               </td>
             </tr>
-            <tr v-for="delivery in deliveries" :key="delivery.id">
+            <tr v-for="delivery in sortedDeliveries" :key="delivery.id">
               <td><strong>#{{ delivery.id }}</strong></td>
               <td>#{{ delivery.order_id }}</td>
               <td>
@@ -153,7 +193,49 @@ export default {
       showAssignModal: false,
       assignForm: {
         order_id: ''
-      }
+      },
+      // Sorting state
+      sortBy: null,
+      sortOrder: 'asc'
+    }
+  },
+  computed: {
+    sortedDeliveries() {
+      if (!this.sortBy) return this.deliveries
+
+      const sorted = [...this.deliveries]
+      return sorted.sort((a, b) => {
+        let aValue, bValue
+
+        switch (this.sortBy) {
+          case 'id':
+            aValue = a.id
+            bValue = b.id
+            break
+          case 'order_id':
+            aValue = a.order_id
+            bValue = b.order_id
+            break
+          case 'order_status':
+            aValue = a.order_status.toLowerCase()
+            bValue = b.order_status.toLowerCase()
+            break
+          case 'customer_name':
+            aValue = a.customer_name.toLowerCase()
+            bValue = b.customer_name.toLowerCase()
+            break
+          case 'delivery_person_name':
+            aValue = a.delivery_person_name.toLowerCase()
+            bValue = b.delivery_person_name.toLowerCase()
+            break
+          default:
+            return 0
+        }
+
+        if (aValue < bValue) return this.sortOrder === 'asc' ? -1 : 1
+        if (aValue > bValue) return this.sortOrder === 'asc' ? 1 : -1
+        return 0
+      })
     }
   },
   mounted() {
@@ -210,6 +292,14 @@ export default {
     },
     refreshDeliveries() {
       this.fetchDeliveries()
+    },
+    sortTable(column) {
+      if (this.sortBy === column) {
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc'
+      } else {
+        this.sortBy = column
+        this.sortOrder = 'asc'
+      }
     },
     formatDate(dateString) {
       if (!dateString) return 'N/A'
@@ -379,6 +469,34 @@ export default {
 .status-cancelled {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.sortable:hover {
+  background-color: var(--bg-primary);
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.sort-icon.inactive {
+  color: var(--text-secondary);
+  opacity: 0.4;
 }
 
 @media (max-width: 768px) {

@@ -41,10 +41,42 @@
         <table>
           <thead>
             <tr>
-              <th>Person ID</th>
-              <th>Name</th>
-              <th>Phone</th>
-              <th>Status</th>
+              <th @click="sortTable('id')" class="sortable">
+                <div class="th-content">
+                  Person ID
+                  <span class="sort-icon" v-if="sortBy === 'id'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('name')" class="sortable">
+                <div class="th-content">
+                  Name
+                  <span class="sort-icon" v-if="sortBy === 'name'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('phone_number')" class="sortable">
+                <div class="th-content">
+                  Phone
+                  <span class="sort-icon" v-if="sortBy === 'phone_number'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
+              <th @click="sortTable('person_status')" class="sortable">
+                <div class="th-content">
+                  Status
+                  <span class="sort-icon" v-if="sortBy === 'person_status'">
+                    {{ sortOrder === 'asc' ? '▲' : '▼' }}
+                  </span>
+                  <span class="sort-icon inactive" v-else>⇅</span>
+                </div>
+              </th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -157,7 +189,10 @@ export default {
       enRoutePersonnel: [],
       currentFilter: 'all',
       showDetailsModal: false,
-      selectedPerson: null
+      selectedPerson: null,
+      // Sorting state
+      sortBy: null,
+      sortOrder: 'asc'
     }
   },
   computed: {
@@ -169,7 +204,38 @@ export default {
       
       console.log('Filtered Personnel:', result)
       console.log('Current Filter:', this.currentFilter)
-      return result
+
+      if (!this.sortBy) return result
+
+      const sorted = [...result]
+      return sorted.sort((a, b) => {
+        let aValue, bValue
+
+        switch (this.sortBy) {
+          case 'id':
+            aValue = a.id
+            bValue = b.id
+            break
+          case 'name':
+            aValue = a.name.toLowerCase()
+            bValue = b.name.toLowerCase()
+            break
+          case 'phone_number':
+            aValue = a.phone_number
+            bValue = b.phone_number
+            break
+          case 'person_status':
+            aValue = a.person_status.toLowerCase()
+            bValue = b.person_status.toLowerCase()
+            break
+          default:
+            return 0
+        }
+
+        if (aValue < bValue) return this.sortOrder === 'asc' ? -1 : 1
+        if (aValue > bValue) return this.sortOrder === 'asc' ? 1 : -1
+        return 0
+      })
     }
   },
   mounted() {
@@ -229,6 +295,14 @@ export default {
     },
     refreshPersonnel() {
       this.fetchPersonnel()
+    },
+    sortTable(column) {
+      if (this.sortBy === column) {
+        this.sortOrder = this.sortOrder === 'asc' ? 'desc' : 'asc'
+      } else {
+        this.sortBy = column
+        this.sortOrder = 'asc'
+      }
     }
   }
 }
@@ -370,6 +444,34 @@ export default {
   color: var(--text-secondary);
   font-size: 0.875rem;
   margin-bottom: 4px;
+}
+
+.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease;
+}
+
+.sortable:hover {
+  background-color: var(--bg-primary);
+}
+
+.th-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sort-icon {
+  font-size: 0.75rem;
+  color: var(--primary-color);
+  font-weight: bold;
+}
+
+.sort-icon.inactive {
+  color: var(--text-secondary);
+  opacity: 0.4;
 }
 
 @media (max-width: 768px) {
