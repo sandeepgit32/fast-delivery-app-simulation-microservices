@@ -182,17 +182,27 @@
           <div class="form-group">
             <label>Items *</label>
             <div v-for="(item, index) in newOrder.items" :key="index" class="item-row">
-              <input 
+              <select 
                 v-model.number="item.item_id" 
-                type="number" 
-                placeholder="Item ID" 
                 class="item-input"
-              />
+                required
+              >
+                <option value="" disabled>Select Item</option>
+                <option 
+                  v-for="stockItem in stockItems" 
+                  :key="stockItem.item_id" 
+                  :value="stockItem.item_id"
+                >
+                  {{ stockItem.item_name }} (Available: {{ stockItem.quantity }})
+                </option>
+              </select>
               <input 
                 v-model.number="item.quantity" 
                 type="number" 
                 placeholder="Quantity" 
                 class="item-input"
+                min="1"
+                required
               />
               <button @click="removeItem(index)" class="btn btn-sm btn-danger">Remove</button>
             </div>
@@ -309,10 +319,11 @@ export default {
       showCreateModal: false,
       showDetailsModal: false,
       selectedOrder: null,
+      stockItems: [],
       newOrder: {
         customer_name: '',
         customer_distance: 0,
-        items: [{ item_id: 1, quantity: 1 }]
+        items: [{ item_id: '', quantity: 1 }]
       },
       // Sorting state
       sortBy: null,
@@ -369,6 +380,7 @@ export default {
   },
   mounted() {
     this.fetchOrders()
+    this.fetchStockItems()
   },
   methods: {
     async fetchOrders() {
@@ -391,6 +403,14 @@ export default {
         this.loading = false
       }
     },
+    async fetchStockItems() {
+      try {
+        const response = await api.getCurrentStock()
+        this.stockItems = response.data
+      } catch (err) {
+        this.error = 'Failed to load stock items: ' + (err.response?.data?.error || err.message)
+      }
+    },
     async createOrder() {
       this.error = null
       this.successMessage = null
@@ -402,7 +422,7 @@ export default {
         this.newOrder = {
           customer_name: '',
           customer_distance: 0,
-          items: [{ item_id: 1, quantity: 1 }]
+          items: [{ item_id: '', quantity: 1 }]
         }
         await this.fetchOrders()
         setTimeout(() => this.successMessage = null, 3000)
@@ -445,7 +465,7 @@ export default {
       }
     },
     addItem() {
-      this.newOrder.items.push({ item_id: 1, quantity: 1 })
+      this.newOrder.items.push({ item_id: '', quantity: 1 })
     },
     removeItem(index) {
       this.newOrder.items.splice(index, 1)
