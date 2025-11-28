@@ -53,23 +53,91 @@
           <h3 class="card-title">Stock Levels</h3>
           <router-link to="/stock" class="btn btn-sm btn-primary">Manage Stock</router-link>
         </div>
-        <div class="stock-grid">
-          <div 
-            v-for="item in stockItems" 
-            :key="item.item_id" 
-            class="stock-item"
-            :class="{ 'low-stock': item.quantity < 10 }"
-          >
-            <div class="stock-item-name">{{ item.item_name }}</div>
-            <div class="stock-item-quantity">
-              <span class="quantity-value">{{ item.quantity }}/{{ item.max_quantity }}</span>
-              <span class="quantity-label">({{ getStockPercentage(item.quantity, item.max_quantity) }}%)</span>
+        <div class="stock-categories-grid">
+          <!-- Red Category (Low Stock) -->
+          <div class="stock-category">
+            <div class="category-header category-red">
+              <h4>Low Stock (&lt;{{ stockThresholds.medium }}%)</h4>
             </div>
-            <div class="stock-item-bar">
+            <div class="stock-column">
               <div 
-                class="stock-item-fill" 
-                :style="{ width: getStockPercentage(item.quantity, item.max_quantity) + '%' }"
-              ></div>
+                v-for="item in categorizedStock.low" 
+                :key="item.item_id" 
+                class="stock-item stock-low"
+              >
+                <div class="stock-item-name">{{ item.item_name }}</div>
+                <div class="stock-item-quantity">
+                  <span class="quantity-value">{{ item.quantity }}/{{ item.max_quantity }}</span>
+                  <span class="quantity-label">({{ getStockPercentage(item.quantity, item.max_quantity) }}%)</span>
+                </div>
+                <div class="stock-item-bar">
+                  <div 
+                    class="stock-item-fill" 
+                    :style="{ width: getStockPercentage(item.quantity, item.max_quantity) + '%' }"
+                  ></div>
+                </div>
+              </div>
+              <div v-if="categorizedStock.low.length === 0" class="empty-category">
+                No items in this category
+              </div>
+            </div>
+          </div>
+
+          <!-- Yellow Category (Medium Stock) -->
+          <div class="stock-category">
+            <div class="category-header category-yellow">
+              <h4>Medium Stock ({{ stockThresholds.medium }}%-{{ stockThresholds.high - 0.1 }}%)</h4>
+            </div>
+            <div class="stock-column">
+              <div 
+                v-for="item in categorizedStock.medium" 
+                :key="item.item_id" 
+                class="stock-item stock-medium"
+              >
+                <div class="stock-item-name">{{ item.item_name }}</div>
+                <div class="stock-item-quantity">
+                  <span class="quantity-value">{{ item.quantity }}/{{ item.max_quantity }}</span>
+                  <span class="quantity-label">({{ getStockPercentage(item.quantity, item.max_quantity) }}%)</span>
+                </div>
+                <div class="stock-item-bar">
+                  <div 
+                    class="stock-item-fill" 
+                    :style="{ width: getStockPercentage(item.quantity, item.max_quantity) + '%' }"
+                  ></div>
+                </div>
+              </div>
+              <div v-if="categorizedStock.medium.length === 0" class="empty-category">
+                No items in this category
+              </div>
+            </div>
+          </div>
+
+          <!-- Green Category (High Stock) -->
+          <div class="stock-category">
+            <div class="category-header category-green">
+              <h4>High Stock (≥{{ stockThresholds.high }}%)</h4>
+            </div>
+            <div class="stock-column">
+              <div 
+                v-for="item in categorizedStock.high" 
+                :key="item.item_id" 
+                class="stock-item stock-high"
+              >
+                <div class="stock-item-name">{{ item.item_name }}</div>
+                <div class="stock-item-quantity">
+                  <span class="quantity-value">{{ item.quantity }}/{{ item.max_quantity }}</span>
+                  <span class="quantity-label">({{ getStockPercentage(item.quantity, item.max_quantity) }}%)</span>
+                </div>
+                <div class="stock-item-bar">
+                  <div 
+                    class="stock-item-fill" 
+                    :style="{ width: getStockPercentage(item.quantity, item.max_quantity) + '%' }"
+                  ></div>
+                </div>
+              </div>
+              <div v-if="categorizedStock.high.length === 0" class="empty-category">
+                No items in this category
+              </div>
             </div>
           </div>
         </div>
@@ -98,7 +166,40 @@ export default {
         enRoutePersonnel: 0
       },
       stockItems: [],
-      refreshInterval: null
+      refreshInterval: null,
+      // Configurable stock level thresholds
+      stockThresholds: {
+        high: 50,    // >= 50% - Green
+        medium: 25,  // >= 25% and < 50% - Yellow
+        // < 25% - Red
+      }
+    }
+  },
+  computed: {
+    categorizedStock() {
+      const low = []
+      const medium = []
+      const high = []
+
+      this.stockItems.forEach(item => {
+        const percentage = this.getStockPercentage(item.quantity, item.max_quantity)
+        if (percentage >= this.stockThresholds.high) {
+          high.push(item)
+        } else if (percentage >= this.stockThresholds.medium) {
+          medium.push(item)
+        } else {
+          low.push(item)
+        }
+      })
+
+      // Sort each category in ascending order by quantity
+      const sortByQuantity = (a, b) => a.quantity - b.quantity
+
+      return {
+        low: low.sort(sortByQuantity),
+        medium: medium.sort(sortByQuantity),
+        high: high.sort(sortByQuantity)
+      }
     }
   },
   mounted() {
@@ -147,6 +248,15 @@ export default {
     getStockPercentage(quantity, maxQuantity) {
       if (!maxQuantity || maxQuantity === 0) return 0
       return Math.round((quantity / maxQuantity) * 100)
+    },
+    getStockLevelClass(percentage) {
+      if (percentage >= this.stockThresholds.high) {
+        return 'stock-high'
+      } else if (percentage >= this.stockThresholds.medium) {
+        return 'stock-medium'
+      } else {
+        return 'stock-low'
+      }
     }
   }
 }
@@ -223,6 +333,60 @@ export default {
   color: var(--text-primary);
 }
 
+.stock-categories-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.stock-category {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.category-header {
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.category-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: white;
+}
+
+.category-red {
+  background: var(--danger-color);
+}
+
+.category-yellow {
+  background: var(--warning-color);
+}
+
+.category-green {
+  background: var(--success-color);
+}
+
+.stock-column {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.empty-category {
+  padding: 24px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-style: italic;
+  background: var(--bg-primary);
+  border-radius: 8px;
+  border: 2px dashed var(--border-color);
+  grid-column: 1 / -1;
+}
+
 .stock-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -242,9 +406,30 @@ export default {
   transform: translateY(-2px);
 }
 
-.stock-item.low-stock {
+.stock-item.stock-high {
+  border-color: var(--success-color);
+}
+
+.stock-item.stock-high .stock-item-fill {
+  background: var(--success-color);
+}
+
+.stock-item.stock-medium {
+  border-color: var(--warning-color);
+  background: #fffbeb;
+}
+
+.stock-item.stock-medium .stock-item-fill {
+  background: var(--warning-color);
+}
+
+.stock-item.stock-low {
   border-color: var(--danger-color);
   background: #fef2f2;
+}
+
+.stock-item.stock-low .stock-item-fill {
+  background: var(--danger-color);
 }
 
 .stock-item-name {
@@ -281,12 +466,7 @@ export default {
 
 .stock-item-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--success-color), var(--primary-color));
   transition: width 0.3s ease;
-}
-
-.stock-item.low-stock .stock-item-fill {
-  background: var(--danger-color);
 }
 
 @media (max-width: 768px) {
@@ -311,6 +491,14 @@ export default {
 
   .stat-value {
     font-size: 1.5rem;
+  }
+
+  .stock-categories-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .stock-column {
+    grid-template-columns: 1fr;
   }
 }
 </style>
