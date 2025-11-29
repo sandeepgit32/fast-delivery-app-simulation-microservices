@@ -80,6 +80,7 @@ services:
       - ./order-auto-generation-service:/app
     depends_on:
       - order-service
+      - redis
     env_file:
       - ./order-auto-generation-service/.env
     networks:

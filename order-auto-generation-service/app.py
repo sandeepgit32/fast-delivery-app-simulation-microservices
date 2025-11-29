@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 
+import redis
 import requests
 from faker import Faker
 from fastapi import FastAPI
@@ -25,8 +26,32 @@ logger = logging.getLogger(__name__)
 
 ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL")
 STOCK_SERVICE_URL = os.getenv("STOCK_SERVICE_URL")
-ORDER_INTERVAL_MIN = int(os.getenv("ORDER_INTERVAL_MIN"))
-ORDER_INTERVAL_MAX = int(os.getenv("ORDER_INTERVAL_MAX"))
+REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379")
+
+# Redis keys
+REDIS_ORDER_GENERATION_KEY = "order_generation_active"
+REDIS_ORDER_INTERVAL_MIN_KEY = "order_interval_min"
+REDIS_ORDER_INTERVAL_MAX_KEY = "order_interval_max"
+
+# Connect to Redis
+redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+
+
+# Initialize default values in Redis if not set
+def init_redis_defaults():
+    if redis_client.get(REDIS_ORDER_GENERATION_KEY) is None:
+        redis_client.set(REDIS_ORDER_GENERATION_KEY, "false")
+    if redis_client.get(REDIS_ORDER_INTERVAL_MIN_KEY) is None:
+        redis_client.set(
+            REDIS_ORDER_INTERVAL_MIN_KEY, os.getenv("ORDER_INTERVAL_MIN", "10")
+        )
+    if redis_client.get(REDIS_ORDER_INTERVAL_MAX_KEY) is None:
+        redis_client.set(
+            REDIS_ORDER_INTERVAL_MAX_KEY, os.getenv("ORDER_INTERVAL_MAX", "50")
+        )
+
+
+init_redis_defaults()
 
 # Create a session with connection pooling
 session = requests.Session()
@@ -46,7 +71,6 @@ fake = Faker()
 # Generate a pool of random customer names
 CUSTOMERS = [fake.name() for _ in range(30)]
 CUSTOMER_DISTANCE_MAP = {x: random.randint(1, 12) for x in CUSTOMERS}
-ORDER_GENERATION = False
 
 app = FastAPI(title="Order Auto Generation Simulation")
 
@@ -127,9 +151,15 @@ class OrderGenerator:
 
     def generate_orders(self):
         while True:
-            time.sleep(random.randint(ORDER_INTERVAL_MIN, ORDER_INTERVAL_MAX))
+            order_interval_min = int(
+                redis_client.get(REDIS_ORDER_INTERVAL_MIN_KEY) or 10
+            )
+            order_interval_max = int(
+                redis_client.get(REDIS_ORDER_INTERVAL_MAX_KEY) or 50
+            )
+            time.sleep(random.randint(order_interval_min, order_interval_max))
             order_payload = self.generate_order_payload()
-            if ORDER_GENERATION:
+            if redis_client.get(REDIS_ORDER_GENERATION_KEY) == "true":
                 self.send_order_request(order_payload)
 
 
@@ -146,38 +176,38 @@ def run_simulation():
 @app.get("/order_start")
 async def order_auto_generation_start():
     """Start the order generation."""
-    global ORDER_GENERATION
-    ORDER_GENERATION = True
+    redis_client.set(REDIS_ORDER_GENERATION_KEY, "true")
     return {"message": "Order generation started"}
 
 
 @app.get("/order_stop")
 async def order_auto_generation_stop():
     """Stop the order generation."""
-    global ORDER_GENERATION
-    ORDER_GENERATION = False
+    redis_client.set(REDIS_ORDER_GENERATION_KEY, "false")
     return {"message": "Order generation stopped"}
 
 
 @app.get("/get_order_interval", response_model=dict)
 async def order_auto_generation_get_interval():
     """Get the order generation rate."""
+    is_running = redis_client.get(REDIS_ORDER_GENERATION_KEY) == "true"
+    order_interval_min = int(redis_client.get(REDIS_ORDER_INTERVAL_MIN_KEY) or 10)
+    order_interval_max = int(redis_client.get(REDIS_ORDER_INTERVAL_MAX_KEY) or 50)
     return {
-        "status": "running" if ORDER_GENERATION else "stopped",
-        "order_interval_min": ORDER_INTERVAL_MIN,
-        "order_interval_max": ORDER_INTERVAL_MAX,
-        "message": f"Current order interval is set to {ORDER_INTERVAL_MIN}-{ORDER_INTERVAL_MAX} seconds",
+        "status": "running" if is_running else "stopped",
+        "order_interval_min": order_interval_min,
+        "order_interval_max": order_interval_max,
+        "message": f"Current order interval is set to {order_interval_min}-{order_interval_max} seconds",
     }
 
 
 @app.post("/set_order_interval", response_model=dict)
 async def order_auto_generation_set_interval(request: OrderInterval):
     """Set the order generation rate."""
-    global ORDER_INTERVAL_MIN, ORDER_INTERVAL_MAX
-    ORDER_INTERVAL_MIN = request.order_interval_min
-    ORDER_INTERVAL_MAX = request.order_interval_max
+    redis_client.set(REDIS_ORDER_INTERVAL_MIN_KEY, str(request.order_interval_min))
+    redis_client.set(REDIS_ORDER_INTERVAL_MAX_KEY, str(request.order_interval_max))
     return {
-        "message": f"Order interval set to {ORDER_INTERVAL_MIN}-{ORDER_INTERVAL_MAX} seconds"
+        "message": f"Order interval set to {request.order_interval_min}-{request.order_interval_max} seconds"
     }
 
 
