@@ -76,6 +76,11 @@ export default {
     }
   },
   computed: {
+    // Check if time range is >= 30 minutes
+    isLargeTimeWindow() {
+      const largeTimeRanges = ['30m', '1h', '2h', '3h', '6h', '12h', '24h']
+      return largeTimeRanges.includes(this.selectedTimeRange)
+    },
     chartData() {
       return {
         labels: this.dataPoints.map(point => this.formatTime(point.timestamp)),
@@ -88,7 +93,8 @@ export default {
             fill: true,
             stepped: 'before', // Staircase effect
             tension: 0,
-            pointRadius: 4,
+            // Hide markers for time windows >= 30 min, show only on hover
+            pointRadius: this.isLargeTimeWindow ? 0 : 4,
             pointHoverRadius: 6,
             pointBackgroundColor: '#6366f1',
             pointBorderColor: '#ffffff',
