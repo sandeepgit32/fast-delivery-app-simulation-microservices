@@ -5,34 +5,74 @@
 ### Create Order
 - **URL**: `/create_order`
 - **Method**: `POST`
-- **Query Parameters**:
-  - `customer_distance` (float, required): Distance to customer location
-  - `items` (dict, required): Dictionary of items and their quantities
+- **Content-Type**: `application/json`
+- **Request Body**:
+  ```json
+  {
+    "customer_name": "string",
+    "customer_distance": float,
+    "items": [
+      {"item_id": integer, "quantity": integer}
+    ]
+  }
+  ```
 - **Success Response**:
   - Code: 201
   - Content: 
     ```json
     {
-        "id": "string",
-        "order_time": "string",
-        "customer_distance": float,
-        "status": "active",
-        "items": {},
-        "message": "Delivery person assigned"
+        "order_id": "string",
+        "task_id": "string"
     }
     ```
 - **Error Response**:
   - Code: 400
-  - Content: `{"error": "error message"}`
+  - Content: `{"detail": "error message"}`
 
-### Close Order
-- **URL**: `/close_order/<order_id>`
+### Cancel Order
+- **URL**: `/cancel_order`
 - **Method**: `POST`
-- **URL Parameters**:
-  - `order_id` (string): Unique identifier of the order
+- **Content-Type**: `application/json`
+- **Request Body**:
+  ```json
+  {
+    "order_id": "string",
+    "message": "string"
+  }
+  ```
 - **Success Response**:
   - Code: 200
-  - Content: `{"status": "Order completed"}`
+  - Content: `{"order_status": "Order cancelled"}`
+
+### Update Message
+- **URL**: `/update_msg`
+- **Method**: `POST`
+- **Content-Type**: `application/json`
+- **Request Body**:
+  ```json
+  {
+    "order_id": "string",
+    "message": "string"
+  }
+  ```
+- **Success Response**:
+  - Code: 200
+  - Content: `{"order_status": "Order message updated"}`
+
+### Close Order
+- **URL**: `/close_order`
+- **Method**: `POST`
+- **Content-Type**: `application/json`
+- **Request Body**:
+  ```json
+  {
+    "order_id": "string",
+    "message": "string"
+  }
+  ```
+- **Success Response**:
+  - Code: 200
+  - Content: `{"order_status": "Order delivered"}`
 
 ### Get All Orders
 - **URL**: `/orders`
@@ -56,7 +96,7 @@
   - Content: Array of completed order objects
 
 ### Get Order Details
-- **URL**: `/order/<order_id>`
+- **URL**: `/order/{order_id}`
 - **Method**: `GET`
 - **URL Parameters**:
   - `order_id` (string): Unique identifier of the order
@@ -65,20 +105,22 @@
   - Content: Detailed order object including items
 - **Error Response**:
   - Code: 404
-  - Content: `{"error": "Order not found"}`
+  - Content: `{"detail": "Order not found"}`
 
 ## Data Models
 
 ### Order Object
 ```json
 {
+    "id": "string",
+    "order_time": "string",
     "customer_name": "string",
     "customer_distance": float,
-    "status": "string",
-    "items": {
-        "item1": float,
-        "item2": float,
-        "item3": float
-    }
+    "order_status": "string",
+    "response_msg": "string",
+    "delivered_at": "string|null",
+    "items": [
+      {"item_id": integer, "item_name": "string", "quantity": integer}
+    ]
 }
 ```

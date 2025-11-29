@@ -14,10 +14,10 @@
   ```json
   [
     {
-      "id": "integer",
+      "id": integer,
       "name": "string",
-      "phone_num": "string",
-      "status": "string"
+      "phone_number": "string",
+      "person_status": "string"
     }
   ]
   ```
@@ -33,21 +33,21 @@
 - **Response**: Same as Get All Delivery Personnel
 
 #### Get Specific Delivery Person
-- **URL**: `/delivery_persons/<person_id>`
+- **URL**: `/delivery_persons/{person_id}`
 - **Method**: GET
 - **Response**: 
   ```json
   {
-    "id": "integer",
+    "id": integer,
     "name": "string",
-    "phone_num": "string",
-    "status": "string"
+    "phone_number": "string",
+    "person_status": "string"
   }
   ```
 - **Error Response** (404):
   ```json
   {
-    "error": "Delivery person not found"
+    "detail": "Delivery person not found"
   }
   ```
 
@@ -60,44 +60,38 @@
   ```json
   [
     {
-      "id": "integer",
-      "order_id": "integer",
-      "delivery_person_id": "integer",
-      "status": "string",
-      "created_at": "datetime",
-      "completed_at": "datetime"
+      "id": integer,
+      "order_id": "string",
+      "order_status": "string",
+      "customer_name": "string",
+      "customer_distance": float,
+      "delivery_person_id": integer,
+      "delivery_person_name": "string",
+      "order_time": "datetime",
+      "delivered_at": "datetime|null"
     }
   ]
   ```
 
-#### Get Active Deliveries
-- **URL**: `/deliveries/active`
-- **Method**: GET
-- **Response**: Same as Get All Deliveries
-
-#### Get Completed Deliveries
-- **URL**: `/deliveries/completed`
-- **Method**: GET
-- **Response**: Same as Get All Deliveries
-
 #### Get Specific Delivery
-- **URL**: `/deliveries/<delivery_id>`
+- **URL**: `/deliveries/{delivery_id}`
 - **Method**: GET
-- **Response**: 
-  ```json
-  {
-    "id": "integer",
-    "order_id": "integer",
-    "delivery_person_id": "integer",
-    "status": "string",
-    "created_at": "datetime",
-    "completed_at": "datetime"
-  }
-  ```
+- **Response**: Same as single delivery object above
 - **Error Response** (404):
   ```json
   {
-    "error": "Delivery not found"
+    "detail": "Delivery not found"
+  }
+  ```
+
+#### Get Delivery by Order ID
+- **URL**: `/deliveries/by_order/{order_id}`
+- **Method**: GET
+- **Response**: Same as single delivery object above
+- **Error Response** (404):
+  ```json
+  {
+    "detail": "Delivery not found for this order"
   }
   ```
 
@@ -106,24 +100,67 @@
 #### Assign Delivery
 - **URL**: `/assign_delivery`
 - **Method**: POST
-- **Query Parameters**:
-  - `order_id`: ID of the order to be delivered
-  - `customer_distance`: Distance to customer location
+- **Content-Type**: application/json
+- **Request Body**:
+  ```json
+  {
+    "order_id": "string"
+  }
+  ```
 - **Success Response**:
   ```json
   {
-    "delivery_id": "integer",
-    "delivery_person": {
-      "id": "integer",
-      "name": "string",
-      "phone_num": "string",
-      "status": "string"
-    }
+    "order_id": "string",
+    "task_id": "string"
+  }
+  ```
+- **Error Response** (404):
+  ```json
+  {
+    "detail": "Order not found"
+  }
+  ```
+
+#### Update Delivery Person Status
+- **URL**: `/update_delivery_person_status`
+- **Method**: POST
+- **Content-Type**: application/json
+- **Request Body**:
+  ```json
+  {
+    "person_id": integer,
+    "person_status": "idle|en_route"
+  }
+  ```
+- **Success Response**:
+  ```json
+  {
+    "message": "Delivery person status updated"
   }
   ```
 - **Error Response** (400):
   ```json
   {
-    "error": "No delivery personnel available"
+    "detail": "Invalid status. Must be 'idle' or 'en_route'"
   }
   ```
+
+#### Create Delivery Record
+- **URL**: `/create_delivery_record`
+- **Method**: POST
+- **Content-Type**: application/json
+- **Request Body**:
+  ```json
+  {
+    "order_id": "string",
+    "delivery_person_id": integer
+  }
+  ```
+- **Success Response**:
+  ```json
+  {
+    "message": "Delivery created",
+    "delivery_id": integer
+  }
+  ```
+  

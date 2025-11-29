@@ -6,7 +6,7 @@
 ## Endpoints
 
 ### Add Stock
-Adds stock quantities for multiple items.
+Adds stock quantities for multiple items. Validates that new quantity does not exceed max_quantity.
 
 - **URL**: `/add_stock`
 - **Method**: POST
@@ -16,7 +16,7 @@ Adds stock quantities for multiple items.
   {
     "order_items": [
       {
-        "item_id": "string",
+        "item_id": integer,
         "quantity": integer
       }
     ]
@@ -31,11 +31,11 @@ Adds stock quantities for multiple items.
     }
     ```
 - **Error Response**:
-  - **Code**: 400
+  - **Code**: 400/404
   - **Content**:
     ```json
     {
-      "error": "Error message details"
+      "detail": "Error message details"
     }
     ```
 
@@ -50,7 +50,7 @@ Removes stock quantities for multiple items after validating availability.
   {
     "order_items": [
       {
-        "item_id": "string",
+        "item_id": integer,
         "quantity": integer
       }
     ]
@@ -69,13 +69,41 @@ Removes stock quantities for multiple items after validating availability.
   - **Content**:
     ```json
     {
-      "error": "Insufficient stock for item {item_id}"
+      "detail": "Insufficient stock for item {item_name}"
+    }
+    ```
+
+### Validate Stock
+Validates if stock operations are possible for multiple items.
+
+- **URL**: `/validate_stock`
+- **Method**: POST
+- **Content-Type**: application/json
+- **Request Body**:
+  ```json
+  {
+    "order_items": [
+      {
+        "item_id": integer,
+        "quantity": integer
+      }
+    ]
+  }
+  ```
+- **Success Response**:
+  - **Code**: 200
+  - **Content**:
+    ```json
+    {
+      "status": true,
+      "message": "Items currently in stock"
     }
     ```
   OR
     ```json
     {
-      "error": "Item {item_id} not found"
+      "status": false,
+      "message": "Insufficient stock for item {item_name}"
     }
     ```
 
@@ -90,9 +118,10 @@ Retrieves current stock levels for all items.
     ```json
     [
       {
-        "item_id": "string",
+        "item_id": integer,
         "item_name": "string",
-        "quantity": integer
+        "quantity": integer,
+        "max_quantity": integer
       }
     ]
     ```
@@ -100,7 +129,7 @@ Retrieves current stock levels for all items.
 ### Get Specific Item Stock
 Retrieves stock level for a specific item.
 
-- **URL**: `/current_stock/<item_id>`
+- **URL**: `/current_stock/{item_id}`
 - **Method**: GET
 - **URL Parameters**: 
   - `item_id`: ID of the item to retrieve
@@ -109,9 +138,10 @@ Retrieves stock level for a specific item.
   - **Content**:
     ```json
     {
-      "item_id": "string",
+      "item_id": integer,
       "item_name": "string",
-      "quantity": integer
+      "quantity": integer,
+      "max_quantity": integer
     }
     ```
 - **Error Response**:
@@ -119,7 +149,7 @@ Retrieves stock level for a specific item.
   - **Content**:
     ```json
     {
-      "error": "Item not found"
+      "detail": "Item not found"
     }
     ```
 
@@ -131,8 +161,8 @@ curl -X POST http://localhost:5003/add_stock \
   -H "Content-Type: application/json" \
   -d '{
     "order_items": [
-      {"item_id": "item1", "quantity": 10},
-      {"item_id": "item2", "quantity": 5}
+      {"item_id": 1, "quantity": 10},
+      {"item_id": 2, "quantity": 5}
     ]
   }'
 ```
@@ -143,8 +173,8 @@ curl -X POST http://localhost:5003/remove_stock \
   -H "Content-Type: application/json" \
   -d '{
     "order_items": [
-      {"item_id": "item1", "quantity": 2},
-      {"item_id": "item2", "quantity": 1}
+      {"item_id": 1, "quantity": 2},
+      {"item_id": 2, "quantity": 1}
     ]
   }'
 ```
@@ -155,5 +185,5 @@ curl -X POST http://localhost:5003/remove_stock \
 curl http://localhost:5003/current_stock
 
 # Get specific item stock
-curl http://localhost:5003/current_stock/item1
+curl http://localhost:5003/current_stock/1
 ```
