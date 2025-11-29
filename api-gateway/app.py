@@ -7,7 +7,7 @@ import requests
 app = Flask(__name__)
 CORS(app)
 limiter = Limiter(
-    get_remote_address, app=app, default_limits=["1000 per day", "60 per hour"]
+    get_remote_address, app=app, default_limits=["10000 per day", "1000 per hour"]
 )
 
 ORDER_SERVICE_URL = "http://order-service:5001"
