@@ -118,6 +118,62 @@
           </tbody>
         </table>
       </div>
+      
+      <!-- Pagination -->
+      <div class="pagination-container" v-if="totalPages > 0">
+        <div class="pagination-info">
+          Showing {{ startItem }} to {{ endItem }} of {{ totalItems }} entries
+        </div>
+        <div class="pagination-controls">
+          <button 
+            @click="goToPage(1)" 
+            :disabled="currentPage === 1"
+            class="pagination-btn"
+            title="First Page"
+          >
+            ««
+          </button>
+          <button 
+            @click="prevPage" 
+            :disabled="currentPage === 1"
+            class="pagination-btn"
+            title="Previous Page"
+          >
+            «
+          </button>
+          <template v-for="page in totalPages" :key="page">
+            <button 
+              v-if="page === 1 || page === totalPages || (page >= currentPage - 2 && page <= currentPage + 2)"
+              @click="goToPage(page)"
+              :class="['pagination-btn', { active: currentPage === page }]"
+            >
+              {{ page }}
+            </button>
+            <span 
+              v-else-if="page === currentPage - 3 || page === currentPage + 3" 
+              class="pagination-ellipsis"
+            >
+              ...
+            </span>
+          </template>
+          <button 
+            @click="nextPage" 
+            :disabled="currentPage === totalPages"
+            class="pagination-btn"
+            title="Next Page"
+          >
+            »
+          </button>
+          <button 
+            @click="goToPage(totalPages)" 
+            :disabled="currentPage === totalPages"
+            class="pagination-btn"
+            title="Last Page"
+          >
+            »»
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Delivery Details Modal -->
@@ -222,11 +278,14 @@ export default {
       },
       // Sorting state
       sortBy: null,
-      sortOrder: 'asc'
+      sortOrder: 'asc',
+      // Pagination state
+      currentPage: 1,
+      itemsPerPage: 10
     }
   },
   computed: {
-    sortedDeliveries() {
+    allSortedDeliveries() {
       if (!this.sortBy) return this.deliveries
 
       const sorted = [...this.deliveries]
@@ -270,6 +329,23 @@ export default {
         if (aValue > bValue) return this.sortOrder === 'asc' ? 1 : -1
         return 0
       })
+    },
+    sortedDeliveries() {
+      const start = (this.currentPage - 1) * this.itemsPerPage
+      const end = start + this.itemsPerPage
+      return this.allSortedDeliveries.slice(start, end)
+    },
+    totalPages() {
+      return Math.ceil(this.allSortedDeliveries.length / this.itemsPerPage)
+    },
+    totalItems() {
+      return this.allSortedDeliveries.length
+    },
+    startItem() {
+      return this.totalItems === 0 ? 0 : (this.currentPage - 1) * this.itemsPerPage + 1
+    },
+    endItem() {
+      return Math.min(this.currentPage * this.itemsPerPage, this.totalItems)
     }
   },
   mounted() {
@@ -334,11 +410,27 @@ export default {
         this.sortBy = column
         this.sortOrder = 'asc'
       }
+      this.currentPage = 1
     },
     formatDate(dateString) {
       if (!dateString) return 'N/A'
       const date = new Date(dateString)
       return date.toLocaleString()
+    },
+    goToPage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page
+      }
+    },
+    prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--
+      }
+    },
+    nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++
+      }
     }
   }
 }
@@ -531,6 +623,62 @@ export default {
 .sort-icon.inactive {
   color: var(--text-secondary);
   opacity: 0.4;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pagination-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  background: white;
+  color: var(--text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.pagination-ellipsis {
+  padding: 0 8px;
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {

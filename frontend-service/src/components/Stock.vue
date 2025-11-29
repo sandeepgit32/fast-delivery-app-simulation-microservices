@@ -139,6 +139,62 @@
           </tbody>
         </table>
       </div>
+      
+      <!-- Pagination -->
+      <div class="pagination-container" v-if="totalPages > 0">
+        <div class="pagination-info">
+          Showing {{ startItem }} to {{ endItem }} of {{ totalItems }} entries
+        </div>
+        <div class="pagination-controls">
+          <button 
+            @click="goToPage(1)" 
+            :disabled="currentPage === 1"
+            class="pagination-btn"
+            title="First Page"
+          >
+            ««
+          </button>
+          <button 
+            @click="prevPage" 
+            :disabled="currentPage === 1"
+            class="pagination-btn"
+            title="Previous Page"
+          >
+            «
+          </button>
+          <template v-for="page in totalPages" :key="page">
+            <button 
+              v-if="page === 1 || page === totalPages || (page >= currentPage - 2 && page <= currentPage + 2)"
+              @click="goToPage(page)"
+              :class="['pagination-btn', { active: currentPage === page }]"
+            >
+              {{ page }}
+            </button>
+            <span 
+              v-else-if="page === currentPage - 3 || page === currentPage + 3" 
+              class="pagination-ellipsis"
+            >
+              ...
+            </span>
+          </template>
+          <button 
+            @click="nextPage" 
+            :disabled="currentPage === totalPages"
+            class="pagination-btn"
+            title="Next Page"
+          >
+            »
+          </button>
+          <button 
+            @click="goToPage(totalPages)" 
+            :disabled="currentPage === totalPages"
+            class="pagination-btn"
+            title="Last Page"
+          >
+            »»
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Add Stock Modal -->
@@ -153,12 +209,19 @@
             <div class="form-group">
               <label>Stock Items</label>
               <div v-for="(stockItem, index) in addStockItems" :key="index" class="item-row">
-                <input 
+                <select 
                   v-model.number="stockItem.item_id" 
-                  type="number" 
-                  placeholder="Item ID" 
                   class="item-input"
-                />
+                >
+                  <option value="" disabled>Select Product</option>
+                  <option 
+                    v-for="item in stockItems" 
+                    :key="item.item_id" 
+                    :value="item.item_id"
+                  >
+                    {{ item.item_name }}
+                  </option>
+                </select>
                 <input 
                   v-model.number="stockItem.quantity" 
                   type="number" 
@@ -270,7 +333,7 @@ export default {
       selectedItem: null,
       quantityToAdd: 0,
       quantityToRemove: 0,
-      addStockItems: [{ item_id: 1, quantity: 10 }],
+      addStockItems: [{ item_id: null, quantity: 10 }],
       // Configurable stock level thresholds
       stockThresholds: {
         high: 50,    // >= 50% - Green
@@ -279,11 +342,14 @@ export default {
       },
       // Sorting state
       sortBy: null,
-      sortOrder: 'asc' // 'asc' or 'desc'
+      sortOrder: 'asc', // 'asc' or 'desc'
+      // Pagination state
+      currentPage: 1,
+      itemsPerPage: 10
     }
   },
   computed: {
-    sortedStockItems() {
+    allSortedStockItems() {
       if (!this.sortBy) {
         return this.stockItems
       }
@@ -330,6 +396,23 @@ export default {
         }
         return 0
       })
+    },
+    sortedStockItems() {
+      const start = (this.currentPage - 1) * this.itemsPerPage
+      const end = start + this.itemsPerPage
+      return this.allSortedStockItems.slice(start, end)
+    },
+    totalPages() {
+      return Math.ceil(this.allSortedStockItems.length / this.itemsPerPage)
+    },
+    totalItems() {
+      return this.allSortedStockItems.length
+    },
+    startItem() {
+      return this.totalItems === 0 ? 0 : (this.currentPage - 1) * this.itemsPerPage + 1
+    },
+    endItem() {
+      return Math.min(this.currentPage * this.itemsPerPage, this.totalItems)
     }
   },
   mounted() {
@@ -357,13 +440,13 @@ export default {
         let stockData
         if (this.selectedItem) {
           stockData = {
-            items: [{ 
+            order_items: [{ 
               item_id: this.selectedItem.item_id, 
               quantity: this.quantityToAdd 
             }]
           }
         } else {
-          stockData = { items: this.addStockItems }
+          stockData = { order_items: this.addStockItems }
         }
 
         await api.addStock(stockData)
@@ -372,7 +455,22 @@ export default {
         await this.fetchStock()
         setTimeout(() => this.successMessage = null, 3000)
       } catch (err) {
-        this.error = 'Failed to add stock: ' + (err.response?.data?.error || err.message)
+        const errorDetail = err.response?.data?.detail || err.response?.data?.error || err.message
+        
+        // Check if it's a capacity exceeded error and format a user-friendly message
+        if (err.response?.status === 400 && errorDetail.includes('exceed maximum capacity')) {
+          // Parse the error to extract useful info
+          const match = errorDetail.match(/Adding (\d+) units to (.+) would exceed maximum capacity \((\d+)\)\. Current: (\d+)/)
+          if (match) {
+            const [, requested, itemName, maxQty, currentQty] = match
+            const available = parseInt(maxQty) - parseInt(currentQty)
+            this.error = `Cannot add ${requested} units to ${itemName}. Maximum capacity is ${maxQty} and current stock is ${currentQty}. You can add up to ${available} more units.`
+          } else {
+            this.error = errorDetail
+          }
+        } else {
+          this.error = 'Failed to add stock: ' + errorDetail
+        }
       }
     },
     async removeStock() {
@@ -386,7 +484,7 @@ export default {
 
       try {
         const stockData = {
-          items: [{ 
+          order_items: [{ 
             item_id: this.selectedItem.item_id, 
             quantity: this.quantityToRemove 
           }]
@@ -415,7 +513,7 @@ export default {
       this.showAddStockModal = false
       this.selectedItem = null
       this.quantityToAdd = 0
-      this.addStockItems = [{ item_id: 1, quantity: 10 }]
+      this.addStockItems = [{ item_id: null, quantity: 10 }]
     },
     closeRemoveStockModal() {
       this.showRemoveStockModal = false
@@ -423,7 +521,7 @@ export default {
       this.quantityToRemove = 0
     },
     addAddStockItem() {
-      this.addStockItems.push({ item_id: 1, quantity: 10 })
+      this.addStockItems.push({ item_id: null, quantity: 10 })
     },
     removeAddStockItem(index) {
       this.addStockItems.splice(index, 1)
@@ -439,6 +537,22 @@ export default {
         // Set new column and default to ascending
         this.sortBy = column
         this.sortOrder = 'asc'
+      }
+      this.currentPage = 1
+    },
+    goToPage(page) {
+      if (page >= 1 && page <= this.totalPages) {
+        this.currentPage = page
+      }
+    },
+    prevPage() {
+      if (this.currentPage > 1) {
+        this.currentPage--
+      }
+    },
+    nextPage() {
+      if (this.currentPage < this.totalPages) {
+        this.currentPage++
       }
     },
     getStockPercentage(quantity, maxQuantity) {
@@ -650,6 +764,62 @@ export default {
 .sort-icon.inactive {
   color: var(--text-secondary);
   opacity: 0.4;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-top: 1px solid var(--border-color);
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.pagination-info {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pagination-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 1px solid var(--border-color);
+  background: white;
+  color: var(--text-primary);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-btn.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.pagination-ellipsis {
+  padding: 0 8px;
+  color: var(--text-secondary);
 }
 
 @media (max-width: 768px) {
