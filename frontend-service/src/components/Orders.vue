@@ -265,7 +265,6 @@
                   <th>Item ID</th>
                   <th>Item Name</th>
                   <th>Quantity</th>
-                  <th>Available</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,14 +272,6 @@
                   <td>{{ item.item_id }}</td>
                   <td>{{ item.item_name || 'N/A' }}</td>
                   <td>{{ item.quantity }}</td>
-                  <td>
-                    <span 
-                      class="badge" 
-                      :class="item.available ? 'badge-success' : 'badge-danger'"
-                    >
-                      {{ item.available ? 'Yes' : 'No' }}
-                    </span>
-                  </td>
                 </tr>
               </tbody>
             </table>
