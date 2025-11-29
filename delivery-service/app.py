@@ -233,6 +233,49 @@ def fetch_delivery(delivery_id):
                 )
 
 
+def fetch_delivery_by_order_id(order_id):
+    """
+    Retrieve specific delivery by order ID
+    Args:
+        order_id: ID of the order
+    Returns:
+        dict: Delivery details or None if not found
+    """
+    with get_db_connection() as conn:
+        with conn.cursor(dictionary=True) as cursor:
+            try:
+                cursor.execute(
+                    """
+                    SELECT
+                        dl.id,
+                        dl.order_id,
+                        o.order_status,
+                        o.order_time,
+                        o.customer_name,
+                        o.customer_distance,
+                        dl.delivery_person_id,
+                        o.delivered_at,
+                        dp.name AS delivery_person_name
+                    FROM
+                        deliveries dl
+                    LEFT JOIN delivery_persons dp 
+                    ON
+                        dl.delivery_person_id = dp.id
+                    LEFT JOIN orders o
+                    ON
+                        dl.order_id = o.id
+                    WHERE dl.order_id = %s;""",
+                    (order_id,),
+                )
+                return cursor.fetchone()
+            except MySQLError as e:
+                conn.rollback()
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to retrieve delivery details: {str(e)}",
+                )
+
+
 def create_delivery_record_in_db(order_id, delivery_person_id):
     """
     Create a new delivery record in the database
@@ -317,6 +360,15 @@ async def get_delivery(delivery_id: int):
     delivery = fetch_delivery(delivery_id)
     if not delivery:
         raise HTTPException(status_code=404, detail="Delivery not found")
+    return delivery
+
+
+@app.get("/deliveries/by_order/{order_id}", response_model=Delivery)
+async def get_delivery_by_order(order_id: str):
+    """Get delivery details by order ID"""
+    delivery = fetch_delivery_by_order_id(order_id)
+    if not delivery:
+        raise HTTPException(status_code=404, detail="Delivery not found for this order")
     return delivery
 
 

@@ -124,6 +124,12 @@ def get_delivery(delivery_id):
     return jsonify(response.json()), response.status_code
 
 
+@app.route("/deliveries/by_order/<order_id>", methods=["GET"])
+def get_delivery_by_order(order_id):
+    response = requests.get(f"{DELIVERY_SERVICE_URL}/deliveries/by_order/{order_id}")
+    return jsonify(response.json()), response.status_code
+
+
 @app.route("/assign_delivery", methods=["POST"])
 def assign_delivery():
     response = requests.post(
@@ -136,7 +142,7 @@ def assign_delivery():
 def update_delivery_person_status(person_id):
     # Transform the request to include person_id in the body
     request_data = request.json if request.json else {}
-    request_data['person_id'] = int(person_id)
+    request_data["person_id"] = int(person_id)
     response = requests.post(
         f"{DELIVERY_SERVICE_URL}/update_delivery_person_status",
         json=request_data,

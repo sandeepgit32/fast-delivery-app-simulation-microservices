@@ -62,6 +62,9 @@ export default {
   getDelivery(deliveryId) {
     return api.get(`/deliveries/${deliveryId}`)
   },
+  getDeliveryByOrderId(orderId) {
+    return api.get(`/deliveries/by_order/${orderId}`)
+  },
   assignDelivery(orderId) {
     return api.post('/assign_delivery', { order_id: orderId })
   },

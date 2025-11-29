@@ -135,25 +135,17 @@
                   <button 
                     @click="viewOrderDetails(order.id)" 
                     class="btn btn-sm btn-primary"
-                    title="View Details"
+                    title="View Order Details"
                   >
-                    👁️
+                    📦 Show Order
                   </button>
                   <button 
-                    v-if="order.order_status !== 'completed' && order.order_status !== 'cancelled'"
-                    @click="closeOrder(order.id)" 
-                    class="btn btn-sm btn-success"
-                    title="Mark as Completed"
+                    v-if="orderDeliveries[order.id]"
+                    @click="viewDeliveryDetails(order.id)" 
+                    class="btn btn-sm btn-info"
+                    title="View Delivery Details"
                   >
-                    ✅
-                  </button>
-                  <button 
-                    v-if="order.order_status !== 'completed' && order.order_status !== 'cancelled'"
-                    @click="cancelOrder(order.id)" 
-                    class="btn btn-sm btn-danger"
-                    title="Cancel Order"
-                  >
-                    ❌
+                    🚚 Show Delivery
                   </button>
                 </div>
               </td>
@@ -283,6 +275,58 @@
       </div>
     </div>
 
+    <!-- Delivery Details Modal -->
+    <div v-if="showDeliveryModal" class="modal-overlay" @click.self="showDeliveryModal = false">
+      <div class="modal">
+        <div class="modal-header">
+          <h3>🚚 Delivery Details - Order #{{ selectedDelivery?.order_id }}</h3>
+          <button @click="showDeliveryModal = false" class="close-btn">✕</button>
+        </div>
+        <div class="modal-body" v-if="selectedDelivery">
+          <div class="detail-grid">
+            <div class="detail-item">
+              <strong>Delivery ID:</strong> {{ selectedDelivery.id }}
+            </div>
+            <div class="detail-item">
+              <strong>Order ID:</strong> #{{ selectedDelivery.order_id }}
+            </div>
+            <div class="detail-item">
+              <strong>Customer:</strong> {{ selectedDelivery.customer_name }}
+            </div>
+            <div class="detail-item">
+              <strong>Distance:</strong> {{ selectedDelivery.customer_distance }} km
+            </div>
+            <div class="detail-item">
+              <strong>Order Status:</strong> 
+              <span 
+                class="badge" 
+                :class="{
+                  'badge-success': selectedDelivery.order_status === 'completed',
+                  'badge-warning': selectedDelivery.order_status === 'confirmed',
+                  'badge-info': selectedDelivery.order_status === 'active',
+                  'badge-danger': selectedDelivery.order_status === 'cancelled'
+                }"
+              >
+                {{ selectedDelivery.order_status }}
+              </span>
+            </div>
+            <div class="detail-item">
+              <strong>Delivery Person:</strong> {{ selectedDelivery.delivery_person_name || 'N/A' }}
+            </div>
+            <div class="detail-item">
+              <strong>Order Time:</strong> {{ formatDate(selectedDelivery.order_time) }}
+            </div>
+            <div class="detail-item">
+              <strong>Delivered At:</strong> {{ formatDate(selectedDelivery.delivered_at) }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="showDeliveryModal = false" class="btn btn-primary">Close</button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="error" class="alert alert-error">
       {{ error }}
     </div>
@@ -309,7 +353,10 @@ export default {
       currentFilter: 'all',
       showCreateModal: false,
       showDetailsModal: false,
+      showDeliveryModal: false,
       selectedOrder: null,
+      selectedDelivery: null,
+      orderDeliveries: {},
       stockItems: [],
       newOrder: {
         customer_name: '',
@@ -388,11 +435,28 @@ export default {
         this.allOrders = all.data
         this.activeOrders = active.data
         this.completedOrders = completed.data
+        
+        // Fetch delivery information for all orders
+        await this.fetchOrderDeliveries()
       } catch (err) {
         this.error = 'Failed to load orders: ' + (err.response?.data?.error || err.message)
       } finally {
         this.loading = false
       }
+    },
+    async fetchOrderDeliveries() {
+      // Check each order for associated delivery
+      const deliveryChecks = this.allOrders.map(async (order) => {
+        try {
+          const response = await api.getDeliveryByOrderId(order.id)
+          if (response.data) {
+            this.orderDeliveries[order.id] = response.data
+          }
+        } catch {
+          // No delivery assigned for this order - this is expected for some orders
+        }
+      })
+      await Promise.all(deliveryChecks)
     },
     async fetchStockItems() {
       try {
@@ -421,31 +485,6 @@ export default {
         this.error = 'Failed to create order: ' + (err.response?.data?.error || err.message)
       }
     },
-    async closeOrder(orderId) {
-      if (!confirm('Mark this order as completed?')) return
-
-      try {
-        await api.closeOrder(orderId)
-        this.successMessage = 'Order closed successfully!'
-        await this.fetchOrders()
-        setTimeout(() => this.successMessage = null, 3000)
-      } catch (err) {
-        this.error = 'Failed to close order: ' + (err.response?.data?.error || err.message)
-      }
-    },
-    async cancelOrder(orderId) {
-      const message = prompt('Enter cancellation reason:')
-      if (!message) return
-
-      try {
-        await api.cancelOrder(orderId, message)
-        this.successMessage = 'Order cancelled successfully!'
-        await this.fetchOrders()
-        setTimeout(() => this.successMessage = null, 3000)
-      } catch (err) {
-        this.error = 'Failed to cancel order: ' + (err.response?.data?.error || err.message)
-      }
-    },
     async viewOrderDetails(orderId) {
       try {
         const response = await api.getOrder(orderId)
@@ -453,6 +492,21 @@ export default {
         this.showDetailsModal = true
       } catch (err) {
         this.error = 'Failed to load order details: ' + (err.response?.data?.error || err.message)
+      }
+    },
+    async viewDeliveryDetails(orderId) {
+      try {
+        // Use cached delivery info if available
+        if (this.orderDeliveries[orderId]) {
+          this.selectedDelivery = this.orderDeliveries[orderId]
+          this.showDeliveryModal = true
+        } else {
+          const response = await api.getDeliveryByOrderId(orderId)
+          this.selectedDelivery = response.data
+          this.showDeliveryModal = true
+        }
+      } catch (err) {
+        this.error = 'Failed to load delivery details: ' + (err.response?.data?.error || err.message)
       }
     },
     addItem() {
@@ -638,6 +692,15 @@ export default {
 .btn-secondary {
   background-color: var(--secondary-color);
   color: white;
+}
+
+.btn-info {
+  background-color: #0ea5e9;
+  color: white;
+}
+
+.btn-info:hover {
+  background-color: #0284c7;
 }
 
 .sortable {
