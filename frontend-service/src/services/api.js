@@ -84,5 +84,13 @@ export default {
   },
   validateStock(stockData) {
     return api.post('/validate_stock', stockData)
+  },
+
+  // Metrics
+  getActiveOrdersMetrics(range = '15m') {
+    return api.get('/metrics/active-orders', { params: { range } })
+  },
+  getCurrentActiveOrdersMetrics() {
+    return api.get('/metrics/active-orders/current')
   }
 }

@@ -13,6 +13,7 @@ limiter = Limiter(
 ORDER_SERVICE_URL = "http://order-service:5001"
 DELIVERY_SERVICE_URL = "http://delivery-service:5002"
 STOCK_SERVICE_URL = "http://stock-service:5003"
+METRICS_SERVICE_URL = "http://metrics-service:5006"
 
 
 @app.route("/")
@@ -178,6 +179,22 @@ def remove_stock():
 @app.route("/validate_stock", methods=["POST"])
 def validate_stock():
     response = requests.post(f"{STOCK_SERVICE_URL}/validate_stock", json=request.json)
+    return jsonify(response.json()), response.status_code
+
+
+# Metrics endpoints
+@app.route("/metrics/active-orders", methods=["GET"])
+def get_active_orders_metrics():
+    range_param = request.args.get("range", "15m")
+    response = requests.get(
+        f"{METRICS_SERVICE_URL}/metrics/active-orders", params={"range": range_param}
+    )
+    return jsonify(response.json()), response.status_code
+
+
+@app.route("/metrics/active-orders/current", methods=["GET"])
+def get_current_active_orders_metrics():
+    response = requests.get(f"{METRICS_SERVICE_URL}/metrics/active-orders/current")
     return jsonify(response.json()), response.status_code
 
 

@@ -116,6 +116,33 @@ services:
     networks:
       - food_delivery_network
 
+  influxdb:
+    build: ./influxdb
+    ports:
+      - "8086:8086"
+    env_file:
+      - ./influxdb/.env
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+    networks:
+      - food_delivery_network
+    restart: unless-stopped
+
+  metrics-service:
+    build: ./metrics-service
+    ports:
+      - "5006:5006"
+    volumes:
+      - ./metrics-service:/app
+    depends_on:
+      - influxdb
+      - order-service
+    env_file:
+      - ./metrics-service/.env
+    networks:
+      - food_delivery_network
+
 volumes:
   mysql-data:
   redis-data:
+  influxdb-data:

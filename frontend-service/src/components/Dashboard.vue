@@ -47,6 +47,9 @@
         </div>
       </div>
 
+      <!-- Active Orders Chart -->
+      <ActiveOrdersChart ref="activeOrdersChart" />
+
       <!-- Active Orders -->
       <div class="card" style="margin-bottom: 50px;">
         <div class="card-header">
@@ -267,9 +270,13 @@
 
 <script>
 import api from '../services/api'
+import ActiveOrdersChart from './ActiveOrdersChart.vue'
 
 export default {
   name: 'Dashboard',
+  components: {
+    ActiveOrdersChart
+  },
   data() {
     return {
       loading: true,
@@ -372,6 +379,10 @@ export default {
     },
     refreshData() {
       this.fetchDashboardData()
+      // Also refresh the chart
+      if (this.$refs.activeOrdersChart) {
+        this.$refs.activeOrdersChart.manualRefresh()
+      }
     },
     getStockPercentage(quantity, maxQuantity) {
       if (!maxQuantity || maxQuantity === 0) return 0
