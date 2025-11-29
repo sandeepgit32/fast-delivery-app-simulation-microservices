@@ -92,5 +92,22 @@ export default {
   },
   getCurrentActiveOrdersMetrics() {
     return api.get('/metrics/active-orders/current')
+  },
+
+  // Simulation
+  startSimulation() {
+    return api.get('/order_start')
+  },
+  stopSimulation() {
+    return api.get('/order_stop')
+  },
+  setOrderInterval(orderIntervalMin, orderIntervalMax) {
+    return api.post('/set_order_interval', {
+      order_interval_min: orderIntervalMin,
+      order_interval_max: orderIntervalMax
+    })
+  },
+  getOrderInterval() {
+    return api.get('/get_order_interval')
   }
 }

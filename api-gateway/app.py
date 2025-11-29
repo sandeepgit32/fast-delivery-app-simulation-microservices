@@ -14,6 +14,7 @@ ORDER_SERVICE_URL = "http://order-service:5001"
 DELIVERY_SERVICE_URL = "http://delivery-service:5002"
 STOCK_SERVICE_URL = "http://stock-service:5003"
 METRICS_SERVICE_URL = "http://metrics-service:5006"
+ORDER_AUTO_GEN_SERVICE_URL = "http://order-auto-generation-service:5005"
 
 
 @app.route("/")
@@ -195,6 +196,33 @@ def get_active_orders_metrics():
 @app.route("/metrics/active-orders/current", methods=["GET"])
 def get_current_active_orders_metrics():
     response = requests.get(f"{METRICS_SERVICE_URL}/metrics/active-orders/current")
+    return jsonify(response.json()), response.status_code
+
+
+# Order Auto Generation (Simulation) endpoints
+@app.route("/order_start", methods=["GET"])
+def order_start():
+    response = requests.get(f"{ORDER_AUTO_GEN_SERVICE_URL}/order_start")
+    return jsonify(response.json()), response.status_code
+
+
+@app.route("/order_stop", methods=["GET"])
+def order_stop():
+    response = requests.get(f"{ORDER_AUTO_GEN_SERVICE_URL}/order_stop")
+    return jsonify(response.json()), response.status_code
+
+
+@app.route("/get_order_interval", methods=["GET"])
+def get_order_interval():
+    response = requests.get(f"{ORDER_AUTO_GEN_SERVICE_URL}/get_order_interval")
+    return jsonify(response.json()), response.status_code
+
+
+@app.route("/set_order_interval", methods=["POST"])
+def set_order_interval():
+    response = requests.post(
+        f"{ORDER_AUTO_GEN_SERVICE_URL}/set_order_interval", json=request.json
+    )
     return jsonify(response.json()), response.status_code
 
 

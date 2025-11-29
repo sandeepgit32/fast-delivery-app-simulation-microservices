@@ -2,9 +2,17 @@
   <div class="container">
     <div class="page-header">
       <h2>📊 Overview</h2>
-      <button @click="refreshData" class="btn btn-primary">
-        🔄 Refresh
-      </button>
+      <div class="header-buttons">
+        <button @click="openSimulationModal" class="btn btn-success" :disabled="simulationRunning">
+          ▶️ Start Simulation
+        </button>
+        <button @click="stopSimulation" class="btn btn-danger" :disabled="!simulationRunning">
+          ⏹️ Stop Simulation
+        </button>
+        <button @click="refreshData" class="btn btn-primary">
+          🔄 Refresh
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="loading">
@@ -262,6 +270,48 @@
       </div>
     </div>
 
+    <!-- Simulation Settings Modal -->
+    <div v-if="showSimulationModal" class="modal-overlay" @click.self="closeSimulationModal">
+      <div class="modal simulation-modal">
+        <div class="modal-header">
+          <h3>⚙️ Simulation Settings</h3>
+          <button @click="closeSimulationModal" class="close-btn">✕</button>
+        </div>
+        <div class="modal-body">
+          <p class="modal-description">Configure the order generation interval for the simulation.</p>
+          <div class="form-group">
+            <label for="orderIntervalMin">Minimum Interval (seconds)</label>
+            <input 
+              type="number" 
+              id="orderIntervalMin" 
+              v-model.number="orderIntervalMin" 
+              min="1" 
+              class="form-input"
+            />
+          </div>
+          <div class="form-group">
+            <label for="orderIntervalMax">Maximum Interval (seconds)</label>
+            <input 
+              type="number" 
+              id="orderIntervalMax" 
+              v-model.number="orderIntervalMax" 
+              min="1" 
+              class="form-input"
+            />
+          </div>
+          <div v-if="intervalError" class="alert alert-error" style="margin-top: 12px;">
+            {{ intervalError }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeSimulationModal" class="btn btn-secondary">Cancel</button>
+          <button @click="startSimulation" class="btn btn-success" :disabled="startingSimulation">
+            {{ startingSimulation ? 'Starting...' : '▶️ Start Simulation' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <div v-if="error" class="alert alert-error">
       {{ error }}
     </div>
@@ -297,7 +347,14 @@ export default {
         high: 50,    // >= 50% - Green
         medium: 25,  // >= 25% and < 50% - Yellow
         // < 25% - Red
-      }
+      },
+      // Simulation state
+      showSimulationModal: false,
+      simulationRunning: false,
+      orderIntervalMin: 5,
+      orderIntervalMax: 15,
+      startingSimulation: false,
+      intervalError: null
     }
   },
   computed: {
@@ -329,6 +386,7 @@ export default {
   },
   mounted() {
     this.fetchDashboardData()
+    this.checkSimulationStatus()
     // Auto-refresh every 5 seconds
     this.refreshInterval = setInterval(() => {
       this.fetchDashboardData(true)
@@ -414,6 +472,63 @@ export default {
       if (!dateString) return 'N/A'
       const date = new Date(dateString)
       return date.toLocaleString()
+    },
+    async checkSimulationStatus() {
+      try {
+        const response = await api.getOrderInterval()
+        this.simulationRunning = response.data.status === 'running'
+        if (response.data.order_interval_min) {
+          this.orderIntervalMin = response.data.order_interval_min
+        }
+        if (response.data.order_interval_max) {
+          this.orderIntervalMax = response.data.order_interval_max
+        }
+      } catch (err) {
+        console.error('Failed to check simulation status:', err)
+      }
+    },
+    openSimulationModal() {
+      this.showSimulationModal = true
+      this.intervalError = null
+    },
+    closeSimulationModal() {
+      this.showSimulationModal = false
+      this.intervalError = null
+    },
+    async startSimulation() {
+      // Validate intervals
+      if (this.orderIntervalMin < 1 || this.orderIntervalMax < 1) {
+        this.intervalError = 'Intervals must be at least 1 second'
+        return
+      }
+      if (this.orderIntervalMin > this.orderIntervalMax) {
+        this.intervalError = 'Minimum interval cannot be greater than maximum interval'
+        return
+      }
+
+      this.startingSimulation = true
+      this.intervalError = null
+
+      try {
+        // Set the order interval first
+        await api.setOrderInterval(this.orderIntervalMin, this.orderIntervalMax)
+        // Then start the simulation
+        await api.startSimulation()
+        this.simulationRunning = true
+        this.closeSimulationModal()
+      } catch (err) {
+        this.intervalError = 'Failed to start simulation: ' + (err.response?.data?.error || err.message)
+      } finally {
+        this.startingSimulation = false
+      }
+    },
+    async stopSimulation() {
+      try {
+        await api.stopSimulation()
+        this.simulationRunning = false
+      } catch (err) {
+        this.error = 'Failed to stop simulation: ' + (err.response?.data?.error || err.message)
+      }
     }
   }
 }
@@ -844,11 +959,86 @@ export default {
   }
 }
 
+.header-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-success {
+  background: var(--success-color);
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #059669;
+}
+
+.btn-danger {
+  background: var(--danger-color);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn-secondary {
+  background: var(--text-secondary);
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #4b5563;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.simulation-modal {
+  max-width: 450px;
+}
+
+.modal-description {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.form-input {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+}
+
 @media (max-width: 768px) {
   .page-header {
     flex-direction: column;
     align-items: flex-start;
     gap: 16px;
+  }
+
+  .header-buttons {
+    flex-wrap: wrap;
   }
 
   .page-header h2 {

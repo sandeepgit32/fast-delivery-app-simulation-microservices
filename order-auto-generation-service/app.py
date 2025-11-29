@@ -163,7 +163,10 @@ async def order_auto_generation_stop():
 async def order_auto_generation_get_interval():
     """Get the order generation rate."""
     return {
-        "message": f"Current order interval is set to {ORDER_INTERVAL_MIN}-{ORDER_INTERVAL_MAX} seconds"
+        "status": "running" if ORDER_GENERATION else "stopped",
+        "order_interval_min": ORDER_INTERVAL_MIN,
+        "order_interval_max": ORDER_INTERVAL_MAX,
+        "message": f"Current order interval is set to {ORDER_INTERVAL_MIN}-{ORDER_INTERVAL_MAX} seconds",
     }
 
 
