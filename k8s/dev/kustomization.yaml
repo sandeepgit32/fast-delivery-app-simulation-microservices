@@ -1,0 +1,29 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: fast-delivery-dev
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - mysql-init-configmap.yaml
+  - pvc.yaml
+  - mysql.yaml
+  - redis.yaml
+  - influxdb.yaml
+  - order-service.yaml
+  - delivery-service.yaml
+  - stock-service.yaml
+  - metrics-service.yaml
+  - celery-worker.yaml
+  - order-auto-generation.yaml
+  - api-gateway.yaml
+  - frontend.yaml
+  - ingress.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: fast-delivery
+      environment: dev
+    includeSelectors: false

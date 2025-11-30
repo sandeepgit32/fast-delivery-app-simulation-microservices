@@ -1,0 +1,24 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: fast-delivery-dev
+data:
+  DB_HOST: "mysql"
+  DB_PORT: "3306"
+  DB_NAME: "fast_delivery"
+  DB_USER: "root"
+  TASK_QUEUE_NAME: "celery"
+  TASK_QUEUE_BROKER_URL: "redis://redis:6379/0"
+  TASK_QUEUE_RESULT_BACKEND_URL: "redis://redis:6379/0"
+  ORDER_SERVICE_URL: "http://order-service:5001"
+  DELIVERY_SERVICE_URL: "http://delivery-service:5002"
+  STOCK_SERVICE_URL: "http://stock-service:5003"
+  METRICS_SERVICE_URL: "http://metrics-service:5006"
+  ORDER_AUTO_GEN_SERVICE_URL: "http://order-auto-generation-service:5005"
+  ORDER_INTERVAL_MIN: "5"
+  ORDER_INTERVAL_MAX: "15"
+  INFLUXDB_URL: "http://influxdb:8086"
+  INFLUXDB_ORG: "fast_delivery"
+  INFLUXDB_BUCKET: "metrics"
+  POLLING_INTERVAL: "5"

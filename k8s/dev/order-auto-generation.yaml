@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-auto-generation-service
+  namespace: fast-delivery-dev
+  labels:
+    app: order-auto-generation-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-auto-generation-service
+  template:
+    metadata:
+      labels:
+        app: order-auto-generation-service
+    spec:
+      initContainers:
+        - name: wait-for-order-service
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z order-service 5001; do
+                echo "Waiting for Order Service..."
+                sleep 2
+              done
+              echo "Order Service is ready!"
+      containers:
+        - name: order-auto-generation-service
+          image: order-auto-generation-service:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5005
+          env:
+            - name: ORDER_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: ORDER_SERVICE_URL
+            - name: STOCK_SERVICE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: STOCK_SERVICE_URL
+            - name: TASK_QUEUE_BROKER_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: TASK_QUEUE_BROKER_URL
+            - name: ORDER_INTERVAL_MIN
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: ORDER_INTERVAL_MIN
+            - name: ORDER_INTERVAL_MAX
+              valueFrom:
+                configMapKeyRef:
+                  name: app-config
+                  key: ORDER_INTERVAL_MAX
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "300m"
+          livenessProbe:
+            httpGet:
+              path: /get_order_interval
+              port: 5005
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /get_order_interval
+              port: 5005
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-auto-generation-service
+  namespace: fast-delivery-dev
+spec:
+  selector:
+    app: order-auto-generation-service
+  ports:
+    - port: 5005
+      targetPort: 5005
+      name: http
