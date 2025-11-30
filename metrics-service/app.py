@@ -23,7 +23,7 @@ app.add_middleware(
 # InfluxDB configuration
 INFLUXDB_URL = os.getenv("INFLUXDB_URL", "http://influxdb:8086")
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN", "my-super-secret-token")
-INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "food_delivery")
+INFLUXDB_ORG = os.getenv("INFLUXDB_ORG", "fast_delivery")
 INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET", "metrics")
 
 # Order service URL

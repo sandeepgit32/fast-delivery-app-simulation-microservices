@@ -1,6 +1,6 @@
-CREATE DATABASE IF NOT EXISTS food_delivery;
+CREATE DATABASE IF NOT EXISTS fast_delivery;
 
-USE food_delivery;
+USE fast_delivery;
 
 -- Create stock table first (no dependencies)
 CREATE TABLE IF NOT EXISTS stock (

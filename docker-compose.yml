@@ -1,7 +1,7 @@
 version: '3.8'
 
 networks:
-  food_delivery_network:
+  fast_delivery_network:
     driver: bridge
 
 services:
@@ -16,7 +16,7 @@ services:
       - delivery-service
       - stock-service
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   tasks:
     build: ./tasks
@@ -30,7 +30,7 @@ services:
     env_file:
       - ./tasks/.env
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   order-service:
     build: ./order-service
@@ -43,7 +43,7 @@ services:
     env_file:
       - ./order-service/.env
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   delivery-service:
     build: ./delivery-service
@@ -57,7 +57,7 @@ services:
     env_file:
       - ./delivery-service/.env
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   stock-service:
     build: ./stock-service
@@ -70,7 +70,7 @@ services:
     env_file:
       - ./stock-service/.env
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   order-auto-generation-service:
     build: ./order-auto-generation-service
@@ -84,7 +84,7 @@ services:
     env_file:
       - ./order-auto-generation-service/.env
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   frontend-service:
     build: ./frontend-service
@@ -93,19 +93,19 @@ services:
     depends_on:
       - api-gateway
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   db:
     build: ./database
     environment:
       MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: food_delivery
+      MYSQL_DATABASE: fast_delivery
     ports:
       - "5004:3306"
     volumes:
       - mysql-data:/var/lib/mysql
     networks:
-      - food_delivery_network
+      - fast_delivery_network
     restart: unless-stopped
 
   redis:
@@ -115,7 +115,7 @@ services:
     volumes:
       - redis-data:/data
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
   influxdb:
     build: ./influxdb
@@ -126,7 +126,7 @@ services:
     volumes:
       - influxdb-data:/var/lib/influxdb2
     networks:
-      - food_delivery_network
+      - fast_delivery_network
     restart: unless-stopped
 
   metrics-service:
@@ -141,7 +141,7 @@ services:
     env_file:
       - ./metrics-service/.env
     networks:
-      - food_delivery_network
+      - fast_delivery_network
 
 volumes:
   mysql-data:

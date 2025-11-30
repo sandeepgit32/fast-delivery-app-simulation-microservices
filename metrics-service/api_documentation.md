@@ -127,7 +127,7 @@ The Metrics Service collects and stores time-series metrics data using InfluxDB.
 |----------|-------------|---------|
 | `INFLUXDB_URL` | InfluxDB connection URL | `http://influxdb:8086` |
 | `INFLUXDB_TOKEN` | InfluxDB authentication token | `my-super-secret-token` |
-| `INFLUXDB_ORG` | InfluxDB organization name | `food_delivery` |
+| `INFLUXDB_ORG` | InfluxDB organization name | `fast_delivery` |
 | `INFLUXDB_BUCKET` | InfluxDB bucket for storing metrics | `metrics` |
 | `ORDER_SERVICE_URL` | URL of the Order Service | `http://order-service:5001` |
 | `POLLING_INTERVAL` | Interval (in seconds) for polling active orders | `5` |

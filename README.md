@@ -205,7 +205,7 @@ This project simulates a fast delivery network that runs on a microservices arch
 
 - **User**: `root`
 - **Password**: `password`
-- **Database**: `food_delivery`
+- **Database**: `fast_delivery`
 - Exposed on host port `5004`; data persisted via the `mysql-data` volume.
 
 #### Redis
