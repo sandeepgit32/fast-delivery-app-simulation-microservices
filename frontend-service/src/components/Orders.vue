@@ -140,7 +140,6 @@
                     📦 Show Order
                   </button>
                   <button 
-                    v-if="orderDeliveries[order.id]"
                     @click="viewDeliveryDetails(order.id)" 
                     class="btn btn-sm btn-info"
                     title="View Delivery Details"
@@ -505,6 +504,7 @@ export default {
     async fetchOrders() {
       this.loading = true
       this.error = null
+      this.orderDeliveries = {}
 
       try {
         const [all, active, completed] = await Promise.all([
@@ -516,28 +516,11 @@ export default {
         this.allOrders = all.data
         this.activeOrders = active.data
         this.completedOrders = completed.data
-        
-        // Fetch delivery information for all orders
-        await this.fetchOrderDeliveries()
       } catch (err) {
         this.error = 'Failed to load orders: ' + (err.response?.data?.error || err.message)
       } finally {
         this.loading = false
       }
-    },
-    async fetchOrderDeliveries() {
-      // Check each order for associated delivery
-      const deliveryChecks = this.allOrders.map(async (order) => {
-        try {
-          const response = await api.getDeliveryByOrderId(order.id)
-          if (response.data) {
-            this.orderDeliveries[order.id] = response.data
-          }
-        } catch {
-          // No delivery assigned for this order - this is expected for some orders
-        }
-      })
-      await Promise.all(deliveryChecks)
     },
     async fetchStockItems() {
       try {
@@ -583,6 +566,7 @@ export default {
           this.showDeliveryModal = true
         } else {
           const response = await api.getDeliveryByOrderId(orderId)
+          this.orderDeliveries[orderId] = response.data
           this.selectedDelivery = response.data
           this.showDeliveryModal = true
         }
