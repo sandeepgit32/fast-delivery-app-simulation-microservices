@@ -392,6 +392,8 @@ export default {
         idlePersonnel: 0,
         enRoutePersonnel: 0
       },
+      isFetching: false,
+      pendingRefresh: false,
       stockItems: [],
       activeOrdersData: [],
       showOrderDetailsModal: false,
@@ -413,10 +415,33 @@ export default {
       // Chart data
       selectedTimeRange: '15m',
       chartDataPoints: [],
+      liveChartPoint: null,
       lastUpdated: null
     }
   },
   computed: {
+    combinedChartPoints() {
+      const historicalPoints = this.chartDataPoints || []
+      const points = historicalPoints.map(point => ({ ...point }))
+
+      if (this.liveChartPoint) {
+        const lastPoint = points[points.length - 1]
+        if (!lastPoint) {
+          points.push({ ...this.liveChartPoint })
+        } else {
+          const lastTime = lastPoint.timestamp?.getTime?.() || new Date(lastPoint.timestamp).getTime()
+          const liveTime = this.liveChartPoint.timestamp.getTime()
+          if (lastTime === liveTime) {
+            // Replace the last point if timestamps match to keep only the freshest value
+            points[points.length - 1] = { ...this.liveChartPoint }
+          } else if (liveTime > lastTime) {
+            points.push({ ...this.liveChartPoint })
+          }
+        }
+      }
+
+      return points
+    },
     categorizedStock() {
       const low = []
       const medium = []
@@ -448,25 +473,51 @@ export default {
       return largeTimeRanges.includes(this.selectedTimeRange)
     },
     chartData() {
+      const combinedPoints = this.combinedChartPoints
+      const labels = combinedPoints.map(point => this.formatChartTime(point.timestamp))
+      const historicalData = combinedPoints.map(point => point.count)
+      const liveHighlightData = combinedPoints.map((point, index) => {
+        if (!this.liveChartPoint) return null
+        return index === combinedPoints.length - 1 ? point.count : null
+      })
+
+      const datasets = [
+        {
+          label: 'Active Orders',
+          data: historicalData,
+          borderColor: '#6366f1',
+          backgroundColor: 'rgba(99, 102, 241, 0.1)',
+          fill: true,
+          stepped: 'before',
+          tension: 0,
+          pointRadius: this.isLargeTimeWindow ? 0 : 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#6366f1',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          borderWidth: 2
+        }
+      ]
+
+      if (this.liveChartPoint) {
+        datasets.push({
+          label: 'Current Snapshot',
+          data: liveHighlightData,
+          borderColor: '#10b981',
+          borderWidth: 0,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          pointBackgroundColor: '#10b981',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          showLine: false,
+          fill: false
+        })
+      }
+
       return {
-        labels: this.chartDataPoints.map(point => this.formatChartTime(point.timestamp)),
-        datasets: [
-          {
-            label: 'Active Orders',
-            data: this.chartDataPoints.map(point => point.count),
-            borderColor: '#6366f1',
-            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-            fill: true,
-            stepped: 'before',
-            tension: 0,
-            pointRadius: this.isLargeTimeWindow ? 0 : 4,
-            pointHoverRadius: 6,
-            pointBackgroundColor: '#6366f1',
-            pointBorderColor: '#ffffff',
-            pointBorderWidth: 2,
-            borderWidth: 2
-          }
-        ]
+        labels,
+        datasets
       }
     },
     chartOptions() {
@@ -565,6 +616,12 @@ export default {
   },
   methods: {
     async fetchDashboardData(silent = false) {
+      if (this.isFetching) {
+        // Defer another refresh until the current one completes
+        this.pendingRefresh = true
+        return
+      }
+      this.isFetching = true
       if (!silent) {
         this.loading = true
         this.chartLoading = true
@@ -613,15 +670,25 @@ export default {
         this.activeOrdersData = newActiveOrdersData
         this.stockItems = stock.data
         this.chartDataPoints = newChartDataPoints
+        this.liveChartPoint = {
+          timestamp: now,
+          count: this.stats.activeOrders
+        }
         this.lastUpdated = now
-        this.loading = false
-        this.chartLoading = false
 
       } catch (err) {
         this.error = 'Failed to load dashboard data: ' + (err.response?.data?.error || err.message)
         console.error('Dashboard error:', err)
+          this.liveChartPoint = null
+      } finally {
         this.loading = false
         this.chartLoading = false
+        this.isFetching = false
+        if (this.pendingRefresh) {
+          this.pendingRefresh = false
+          // Fire-and-forget silent refresh with the latest data request queued
+          this.fetchDashboardData(true)
+        }
       }
     },
     refreshData() {
